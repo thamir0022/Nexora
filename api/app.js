@@ -7,6 +7,7 @@ import userRoutes from "./routes/user.routes.js";
 import { connectMongodb } from "./config/mongodb.js";
 import { globalErrorHandler } from "./middlewares/globalmiddleware.js";
 import cookieParser from "cookie-parser";
+import cors from 'cors';
 
 const app = express();
 
@@ -15,6 +16,10 @@ app.listen(PORT, () => {
   connectMongodb();
 });
 
+app.use(cors({
+  origin: 'http://localhost:5173', // Vite frontend URL
+  credentials: true, // if you're using cookies or authorization headers
+}));
 app.use(express.json());
 app.use(cookieParser())
 app.use("/api/v1/auth", authRoutes);

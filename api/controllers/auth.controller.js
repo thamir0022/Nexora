@@ -11,7 +11,7 @@ import {
   generateRefreshToken,
 } from "../utils/jwtGenerator.js";
 import jwt from "jsonwebtoken";
-import { JWT_REFRESH_TOKEN_SECRET } from "../utils/env.js";
+import { JWT_REFRESH_TOKEN_EXPIRES_IN, JWT_REFRESH_TOKEN_SECRET } from "../utils/env.js";
 import { handleZodError } from "../utils/handleZodError.js";
 
 export const signUp = async (req, res, next) => {
@@ -55,7 +55,7 @@ export const signUp = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 1000 * 60 * 60, //1 hour
     });
 
     // ✅ Send access token in JSON response
@@ -100,7 +100,7 @@ export const signIn = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      maxAge: 1000 * 60 * 60, //1 hour
     });
 
     // ✅ Send access token in JSON response

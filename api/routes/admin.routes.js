@@ -1,9 +1,8 @@
 import {Router} from "express";
+import { getUsers } from "../controllers/admin.controller.js";
 
 const router = Router();
 
-router.get("/", (req, res, next) => {
-  res.send("Test api");
-})
+router.get("/users", getUsers)
 
 export default router;

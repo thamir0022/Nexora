@@ -1,8 +1,9 @@
 import {Router} from "express";
+import { verifyUser } from "../utils/verifyUser.js";
 
 const router = Router();
 
-router.get("/", (req, res, next) => {
+router.get("/", verifyUser, (req, res, next) => {
   res.send("Test api");
 })
 
