@@ -35,10 +35,16 @@ const courseSchema = new Schema(
       min: 0,
     },
     rating: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5,
+      averageRating: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5,
+      },
+      ratingCount: {
+        type: Number,
+        default: 0,
+      },
     },
     lessons: [
       {
@@ -47,6 +53,10 @@ const courseSchema = new Schema(
         required: true,
       },
     ],
+    lessonCount: {
+      type: Number,
+      default: 0
+    },
     thumbnailImage: {
       type: String,
       required: true,
