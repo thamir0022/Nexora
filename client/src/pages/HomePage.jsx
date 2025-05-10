@@ -1,14 +1,20 @@
 import Header from "@/components/Header";
 import Thumbnail from "@/components/Thumbnail";
 import { AnimatedGroup } from "@/components/ui/animated-group";
-import { Card, CardContent } from "@/components/ui/card";
 import axios from "@/config/axios";
+import { useAccessToken } from "@/hooks/useAccessToken";
+import { useAuth } from "@/hooks/useAuth";
 import { Loader } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 const HomePage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setloading] = useState(false);
+
+  const {user} = useAuth();
+  const {token} = useAccessToken();
+
+  console.log({user, token});
 
   useEffect(() => {
     const fetchCourses = async () => {

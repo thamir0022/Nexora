@@ -12,6 +12,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { StarRating } from "./star-rating";
 import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { Link } from "react-router-dom";
 
 export default function Thumbnail({
   id,
@@ -48,21 +50,21 @@ export default function Thumbnail({
             <MorphingDialogTitle className="text-zinc-950 dark:text-zinc-50">
               {title}
             </MorphingDialogTitle>
-            <MorphingDialogSubtitle className="text-zinc-700 dark:text-zinc-400">
+            <MorphingDialogSubtitle className="text-zinc-700 dark:text-zinc-400 space-y-1">
+              <div className="line-clamp-2">{description}</div>
               <div className="flex gap-2 items-center">
-                <StarRating
-                  size="md"
-                  defaultRating={rating.averageRating}
-                  readonly
-                />
-                <span>{rating.ratingCount}</span>
+                <span className="line-through text-muted-foreground">₹ 1299</span>
+                <span className="font-semibold">₹ 999</span>
+                <Badge variant="outline" className="bg-green-300">25%</Badge>
               </div>
               <div className="flex gap-2 items-center">
-                <Avatar>
-                  <AvatarImage src="" />
-                  <AvatarFallback>{instructor.fullName[0]}</AvatarFallback>
-                </Avatar>
-                <span className="">{instructor.fullName}</span>
+                <span className="text-sm font-semibold">{rating.averageRating}</span>
+                <StarRating
+                  size="sm"
+                  value={rating.averageRating}
+                  readonly
+                />
+                <span className="text-sm">{rating.ratingCount}</span>
               </div>
             </MorphingDialogSubtitle>
           </div>
@@ -84,22 +86,23 @@ export default function Thumbnail({
             <MorphingDialogTitle className="text-2xl text-zinc-950 dark:text-zinc-50">
               {title}
             </MorphingDialogTitle>
-            <MorphingDialogSubtitle className="text-zinc-700 dark:text-zinc-400">
+            <MorphingDialogSubtitle className="text-zinc-700 dark:text-zinc-400 space-y-2">
               <div className="flex gap-2 items-center">
+                <span className="font-semibold">{rating.averageRating}</span>
                 <StarRating
                   size="md"
-                  defaultRating={rating.averageRating}
+                  value={rating.averageRating}
                   readonly
                 />
                 <span>{rating.ratingCount}</span>
               </div>
-              <div className="flex gap-2 items-center">
+              <Link to="#" className="flex gap-2 items-center w-fit cursor-pointer">
                 <Avatar>
                   <AvatarImage src="" />
                   <AvatarFallback>{instructor.fullName[0]}</AvatarFallback>
                 </Avatar>
                 <span className="">{instructor.fullName}</span>
-              </div>
+              </Link>
             </MorphingDialogSubtitle>
             <MorphingDialogDescription
               className="space-y-2"
@@ -120,9 +123,9 @@ export default function Thumbnail({
               </ul>
               <ul className="flex gap-2">
                 {category.map((c, i) => (
-                  <li key={i} className="text-sm link px-2 py-1 rounded-full bg-blue-500/10">
+                  <Badge key={i} variant="outline" className="cursor-pointer">
                     {c}
-                  </li>
+                  </Badge>
                 ))}
               </ul>
               <Button className="w-full">Buy This Course</Button>

@@ -1,7 +1,7 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
 // Base User Schema
-const options = { discriminatorKey: 'role', timestamps: true };
+const options = { discriminatorKey: "role", timestamps: true };
 
 const UserSchema = new Schema(
   {
@@ -19,7 +19,6 @@ const UserSchema = new Schema(
     },
     password: {
       type: String,
-      required: true,
     },
     mobile: {
       type: String,
@@ -27,7 +26,7 @@ const UserSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ['student', 'admin', 'instructor'],
+      enum: ["student", "instructor"],
       required: true,
     },
     profilePicture: {
@@ -36,16 +35,24 @@ const UserSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ['active', 'pending', 'suspended'],
+      enum: ["active", "pending", "suspended"],
       default: function () {
-        return this.role === 'instructor' ? 'pending' : 'active';
+        return this.role === "instructor" ? "pending" : "active";
       },
+    },
+    emailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    mobileVerified: {
+      type: Boolean,
+      default: false,
     },
   },
   options
 );
 
-const User = model('User', UserSchema);
+const User = model("User", UserSchema);
 
 // Instructor-specific schema
 const InstructorSchema = new Schema({
@@ -56,7 +63,7 @@ const InstructorSchema = new Schema({
   courses: [
     {
       type: Schema.Types.ObjectId,
-      ref: 'Course',
+      ref: "Course",
     },
   ],
   rating: {
@@ -73,6 +80,6 @@ const InstructorSchema = new Schema({
   },
 });
 
-const Instructor = User.discriminator('instructor', InstructorSchema);
+const Instructor = User.discriminator("instructor", InstructorSchema);
 
 export { User, Instructor };

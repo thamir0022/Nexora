@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import GoogleSignInButton from "@/components/GoogleSignInButton"
 
 // Define validation schema with Zod
 const signInSchema = z.object({
@@ -50,8 +51,10 @@ function SignInPage() {
       setUser(response.data.user)
       setToken(response.data.accessToken)
 
-      // Navigate to home page
-      navigate("/")
+      const redirectUrl = response.data.user.role === "student" ? "/" : "/dashboard";
+
+      // Navigate
+      navigate(redirectUrl)
     } catch (error) {
       // Handle API errors
       if (error.response) {
@@ -111,6 +114,7 @@ function SignInPage() {
             <Button type="submit" className="w-full mt-2" disabled={isLoading}>
               {isLoading ? "Signing In..." : "Sign In"}
             </Button>
+            <GoogleSignInButton/>
           </form>
         </Form>
       </CardContent>

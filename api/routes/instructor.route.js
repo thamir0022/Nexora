@@ -1,9 +1,8 @@
 import {Router} from "express";
+import { addInstructorQualification } from "../controllers/instructor.controller.js";
 
 const router = Router();
 
-router.get("/", (req, res, next) => {
-  res.send("Test api");
-})
+router.post("/qualifications", addInstructorQualification);
 
 export default router;

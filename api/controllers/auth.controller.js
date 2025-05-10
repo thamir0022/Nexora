@@ -11,8 +11,9 @@ import {
   generateRefreshToken,
 } from "../utils/jwtGenerator.js";
 import jwt from "jsonwebtoken";
-import { JWT_REFRESH_TOKEN_EXPIRES_IN, JWT_REFRESH_TOKEN_SECRET } from "../utils/env.js";
+import { GOOGLE_CLIENT_ID, JWT_REFRESH_TOKEN_SECRET } from "../utils/env.js";
 import { handleZodError } from "../utils/handleZodError.js";
+import { googleAuthClient } from "../config/googleAuth.js";
 
 export const signUp = async (req, res, next) => {
   try {
@@ -46,27 +47,36 @@ export const signUp = async (req, res, next) => {
     });
     await newUser.save();
 
-    // ✅ Generate tokens
-    const accessToken = generateAccessToken({ id: newUser._id, role });
-    const refreshToken = generateRefreshToken({ id: newUser._id });
+    if (newUser.role === "student") {
+      // ✅ Generate tokens
+      const accessToken = generateAccessToken({ id: newUser._id, role });
+      const refreshToken = generateRefreshToken({ id: newUser._id });
 
-    // ✅ Set refresh token in HTTP-only secure cookie
-    res.cookie("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 1000 * 60 * 60, //1 hour
-    });
+      // ✅ Set refresh token in HTTP-only secure cookie
+      res.cookie("refresh_token", refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Strict",
+        maxAge: 1000 * 60 * 60, //1 hour
+      });
 
-    // ✅ Send access token in JSON response
-    const { password: _, ...userData } = newUser._doc;
+      // ✅ Send access token in JSON response
+      const { password: _, ...userData } = newUser._doc;
 
-    return res.status(201).json({
-      success: true,
-      message: "Sign up successful",
-      user: userData,
-      accessToken,
-    });
+      return res.status(201).json({
+        success: true,
+        message: "Sign up successful",
+        user: userData,
+        accessToken,
+      });
+    } else {
+      // If the user is an instructor
+      return res.status(201).json({
+        success: true,
+        message: "Sign up successful. Please complete your profile.",
+        user: newUser,
+      });
+    }
   } catch (error) {
     next(error);
   }
@@ -150,5 +160,87 @@ export const refreshToken = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const googleAuth = async (req, res, next) => {
+  try {
+    const { credential } = req.body;
+
+    if (!credential) {
+      return res
+        .status(400)
+        .json({ success: false, message: "No credential provided" });
+    }
+
+    // Verify Google ID token
+    const ticket = await googleAuthClient.verifyIdToken({
+      idToken: credential,
+      audience: GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+    if (!payload || !payload.email) {
+      return res
+        .status(401)
+        .json({ success: false, message: "Invalid Google token" });
+    }
+
+    let user = await User.findOne({ email: payload.email });
+
+    // If user does not exist, create one
+    if (!user) {
+      user = new User({
+        fullName: payload.name,
+        email: payload.email,
+        password: "", // no password for Google sign-in
+        role: "student", // default role, adjust as needed
+        profilePicture: payload.picture,
+        emailVerified: true,
+      });
+      await user.save();
+    }
+
+    // Generate tokens
+    const accessToken = generateAccessToken({ id: user._id, role: user.role });
+    const refreshToken = generateRefreshToken({ id: user._id });
+
+    // Set refresh token cookie
+    res.cookie("refresh_token", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+      maxAge: 1000 * 60 * 60, // 1 hour
+    });
+
+    const { password, ...userData } = user.toObject();
+
+    return res.status(200).json({
+      success: true,
+      message: user.isNew
+        ? "Google sign-up successful"
+        : "Google sign-in successful",
+      user: userData,
+      accessToken,
+    });
+  } catch (error) {
+    console.error("Google Auth Error:", error);
+    next(error);
+  }
+};
+
+export const signOut = (req, res, next) => {
+  try {
+    res.clearCookie("refresh_token", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "Strict",
+    });
+
+    return res
+      .status(200)
+      .json({ success: true, message: "Signed out successfully" });
+  } catch (err) {
+    next(err);
   }
 };

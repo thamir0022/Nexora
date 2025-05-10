@@ -1,10 +1,10 @@
-import { Schema, model } from 'mongoose';
+import { Schema, model } from "mongoose";
 
 const instructorQualificationSchema = new Schema(
   {
     userId: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       required: true,
     },
     qualifications: [
@@ -45,8 +45,15 @@ const instructorQualificationSchema = new Schema(
       },
     ],
     status: {
-      type: Boolean,
-      default: false,
+      type: String,
+      enum: [
+        "pending",
+        "under_review",
+        "approved",
+        "rejected",
+        "needs_more_info",
+      ],
+      default: "pending",
     },
     feedback: {
       type: String,
@@ -54,7 +61,7 @@ const instructorQualificationSchema = new Schema(
     },
     reviewedBy: {
       type: Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
     },
     reviewedAt: {
       type: Date,
@@ -66,7 +73,7 @@ const instructorQualificationSchema = new Schema(
 );
 
 const InstructorQualification = model(
-  'InstructorQualification',
+  "InstructorQualification",
   instructorQualificationSchema
 );
 

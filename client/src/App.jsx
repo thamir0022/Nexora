@@ -6,6 +6,7 @@ import SignUpPage from "@/pages/SignUpPage";
 import AuthLayout from "@/layouts/AuthLayout";
 import DashboadLayout from "./layouts/DashboadLayout";
 import Dashboard from "./pages/Dashboard";
+import PrivateRoutes from "./components/PrivateRoutes";
 
 const App = () => {
   return (
@@ -15,8 +16,10 @@ const App = () => {
         <Route path="/sign-in" element={<SignInPage />} />
         <Route path="/sign-up" element={<SignUpPage />} />
       </Route>
-      <Route element={<DashboadLayout />}>
-        <Route path="/dashboard" element={<Dashboard />} />
+      <Route element={<PrivateRoutes />}>
+        <Route element={<DashboadLayout />}>
+          <Route path="/dashboard" element={<Dashboard />} />
+        </Route>
       </Route>
     </Routes>
   );

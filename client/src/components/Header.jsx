@@ -31,7 +31,7 @@ const Header = () => {
         </nav>
         {/* Sign In: right on md+ */}
         <div className="hidden md:block md:justify-self-end">
-          <Button>Sign In</Button>
+          <Link to="/sign-in"><Button>Sign In</Button></Link>
         </div>
         {/* Hamburger: right on mobile only */}
         <button
@@ -63,7 +63,7 @@ const Header = () => {
         <Link to="#" className="w-full text-center py-2 rounded hover:bg-blue-100 transition">Home</Link>
         <Link to="#" className="w-full text-center py-2 rounded hover:bg-blue-100 transition">Courses</Link>
         <Link to="#" className="w-full text-center py-2 rounded hover:bg-blue-100 transition">About</Link>
-        <Button className="w-full">Sign In</Button>
+        <Link to="/sign-in"><Button className="w-full">Sign In</Button></Link>
       </div>
     </header>
   );

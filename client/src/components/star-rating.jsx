@@ -2,14 +2,14 @@ import { useState, useEffect } from "react"
 import { Star } from "lucide-react"
 import { cn } from "@/lib/utils"
 
-export function StarRating({ maxRating = 5, size = "md", defaultRating = 0, onChange, readonly = false, className }) {
-  const [rating, setRating] = useState(defaultRating)
+export function StarRating({ maxRating = 5, size = "md", value = 0, onChange, readonly = false, className }) {
+  const [rating, setRating] = useState(value)
   const [hoverRating, setHoverRating] = useState(0)
 
-  // Update internal state if defaultRating changes externally
+  // Update internal state if value changes externally
   useEffect(() => {
-    setRating(defaultRating)
-  }, [defaultRating])
+    setRating(value)
+  }, [value])
 
   const handleSetRating = (newRating) => {
     if (readonly) return
