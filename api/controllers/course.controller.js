@@ -1,3 +1,4 @@
+import { isValidObjectId } from "mongoose";
 import Course from "../models/course.model.js";
 import { AppError } from "../utils/apperror.js";
 
@@ -34,6 +35,12 @@ export const getAllCourses = async (req, res, next) => {
 export const getCourseById = async (req, res, next) => {
   try {
     const { courseId } = req.params;
+
+    if(!courseId || !isValidObjectId(courseId)) {
+      const message = courseId ? "Invalid course Id" : "Course Id is required";
+      throw  new AppError(message);
+    }
+    
     const course = await Course.findById(courseId)
       .populate("category instructor lessons")
       .lean();

@@ -1,31 +1,12 @@
 import * as React from "react";
 import {
-  AudioWaveform,
   BadgeCheck,
   Bell,
-  BookOpen,
-  Bot,
   ChevronRight,
   ChevronsUpDown,
-  Command,
-  CommandIcon,
   CreditCard,
-  Folder,
-  Forward,
-  Frame,
-  GalleryVerticalEnd,
-  LifeBuoy,
   LogOut,
-  Map,
-  MoreHorizontal,
-  PieChart,
-  Plus,
-  Settings,
-  Settings2,
   Sparkles,
-  SquareTerminal,
-  Trash2,
-  User,
 } from "lucide-react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -41,7 +22,6 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
@@ -53,7 +33,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuAction,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSub,
@@ -67,6 +46,7 @@ import { Link, useNavigate } from "react-router-dom";
 import axios from "@/config/axios";
 import { toast } from "sonner";
 import { useAccessToken } from "@/hooks/useAccessToken";
+import BrandLogo from "./BrandLogo";
 
 // This is sample sidebar link data.
 // const data = {
@@ -206,19 +186,15 @@ export default function AppSidebar() {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
-              size="lg"
+              size="xl"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
-                <CommandIcon className="size-4" />
-              </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-semibold">E Learning</span>
-                <span className="truncate text-xs">
+              <div className="flex flex-col">
+                <BrandLogo size={10} />
+                <span className="text-center text-sm text-muted-foreground">
                   {user?.role || "Guest"}
                 </span>
               </div>
-              <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

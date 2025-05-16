@@ -37,7 +37,7 @@ const instructorQualificationSchema = new Schema(
           trim: true,
           required: true,
         },
-        url: {
+        profileUrl: {
           type: String,
           trim: true,
           required: true,

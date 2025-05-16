@@ -7,18 +7,25 @@ import AuthLayout from "@/layouts/AuthLayout";
 import DashboadLayout from "./layouts/DashboadLayout";
 import Dashboard from "./pages/Dashboard";
 import PrivateRoutes from "./components/PrivateRoutes";
+import SingleCoursePage from "./pages/SingleCoursePage";
+import InstructorRequestDetail from "./pages/InstructorRequestPage";
 
 const App = () => {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route element={<AuthLayout />}>
-        <Route path="/sign-in" element={<SignInPage />} />
-        <Route path="/sign-up" element={<SignUpPage />} />
+        <Route path="sign-in" element={<SignInPage />} />
+        <Route path="sign-up" element={<SignUpPage />} />
       </Route>
       <Route element={<PrivateRoutes />}>
-        <Route element={<DashboadLayout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="dashboard" element={<DashboadLayout />}>
+          <Route path="" element={<Dashboard />} />
+          <Route path="courses/:courseId" element={<SingleCoursePage />} />
+          <Route
+            path="instructors/requests/:userId"
+            element={<InstructorRequestDetail />}
+          />
         </Route>
       </Route>
     </Routes>

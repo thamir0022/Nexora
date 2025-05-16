@@ -4,6 +4,7 @@ import { Button } from "./ui/button";
 import { DraftingCompass, Menu } from "lucide-react";
 import { useState } from "react";
 import Toggletheme from "./theme-toggle";
+import BrandLogo from "./BrandLogo";
 
 const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -18,10 +19,7 @@ const Header = () => {
       {/* Header Row: mobile (logo+hamburger), desktop (logo, nav, button) */}
       <div className="w-full flex items-center justify-between md:grid md:grid-cols-3 md:items-center">
         {/* Logo: always left */}
-        <Link className="inline-flex items-center gap-2 text-lg font-bold text-gray-800 drop-shadow-md hover:text-blue-600 transition md:justify-self-start" to="/">
-          <DraftingCompass className="w-6 h-6" />
-          Start Up
-        </Link>
+        <BrandLogo size={12}/>
         {/* Nav: center on md+ */}
         <nav className="hidden md:flex gap-8 items-center justify-center text-base font-medium text-gray-700 md:justify-self-center">
           <Link to="#" className="hover:text-blue-500 transition">Home</Link>

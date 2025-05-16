@@ -10,7 +10,7 @@ import {
   MorphingDialogContainer,
 } from "@/components/ui/morphing-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { StarRating } from "./star-rating";
+import { StarRating } from "./ui/star-rating";
 import { Button } from "./ui/button";
 import { Badge } from "./ui/badge";
 import { Link } from "react-router-dom";
@@ -99,9 +99,9 @@ export default function Thumbnail({
               <Link to="#" className="flex gap-2 items-center w-fit cursor-pointer">
                 <Avatar>
                   <AvatarImage src="" />
-                  <AvatarFallback>{instructor.fullName[0]}</AvatarFallback>
+                  <AvatarFallback>{instructor?.fullName[0]}</AvatarFallback>
                 </Avatar>
-                <span className="">{instructor.fullName}</span>
+                <span className="">{instructor?.fullName}</span>
               </Link>
             </MorphingDialogSubtitle>
             <MorphingDialogDescription

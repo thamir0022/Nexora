@@ -19,10 +19,14 @@ const courseSchema = new Schema(
       required: true,
       trim: true,
     },
+    price: {
+      type: Number,
+      required: true,
+    },
     features: {
       type: [String],
       required: true,
-      validate: v => Array.isArray(v) && v.length > 0,
+      validate: (v) => Array.isArray(v) && v.length > 0,
     },
     instructor: {
       type: Types.ObjectId,
@@ -55,7 +59,7 @@ const courseSchema = new Schema(
     ],
     lessonCount: {
       type: Number,
-      default: 0
+      default: 0,
     },
     thumbnailImage: {
       type: String,

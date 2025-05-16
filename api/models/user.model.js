@@ -1,21 +1,17 @@
 import { Schema, model } from "mongoose";
 
-// Base User Schema
-const options = { discriminatorKey: "role", timestamps: true };
-
 const UserSchema = new Schema(
   {
     fullName: {
       type: String,
-      required: true,
       trim: true,
     },
     email: {
       type: String,
-      required: true,
       unique: true,
       lowercase: true,
       trim: true,
+      index: true,
     },
     password: {
       type: String,
@@ -23,23 +19,59 @@ const UserSchema = new Schema(
     mobile: {
       type: String,
       trim: true,
+      index: true,
     },
     role: {
       type: String,
       enum: ["student", "instructor"],
-      required: true,
-    },
-    profilePicture: {
-      type: String,
-      trim: true,
+      index: true,
     },
     status: {
       type: String,
-      enum: ["active", "pending", "suspended"],
-      default: function () {
-        return this.role === "instructor" ? "pending" : "active";
-      },
+      enum: ["active", "pending", "suspended", "rejected"],
+      default: "pending",
+      index: true,
     },
+
+    // Student-only field
+    enrolledCourses: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Course", // assuming a Course model exists
+      },
+    ],
+
+    wallet: {
+      balance: {
+        type: Number,
+        default: 0,
+      },
+      history: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: "WalletTransaction",
+        },
+      ],
+    },
+    usedCoupons: [
+      {
+        code: String,
+        usedAt: Date,
+      },
+    ],
+
+    // Instructor-only fields
+    bio: {
+      type: String,
+      trim: true,
+    },
+    courses: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Course",
+      },
+    ],
+
     emailVerified: {
       type: Boolean,
       default: false,
@@ -48,38 +80,63 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    profilePicture: {
+      type: String,
+      trim: true,
+    },
+    isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
-  options
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
 
-const User = model("User", UserSchema);
-
-// Instructor-specific schema
-const InstructorSchema = new Schema({
-  bio: {
-    type: String,
-    trim: true,
-  },
-  courses: [
-    {
-      type: Schema.Types.ObjectId,
-      ref: "Course",
-    },
-  ],
-  rating: {
-    totalReviews: {
-      type: Number,
-      default: 0,
-    },
-    averageRating: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5,
-    },
-  },
+// Index for compound queries
+UserSchema.index({
+  email: 1,
+  role: 1,
+  status: 1,
+  isDeleted: 1,
 });
 
-const Instructor = User.discriminator("instructor", InstructorSchema);
+// Query middleware: exclude soft-deleted users
+UserSchema.pre(/^find/, function () {
+  this.where({ isDeleted: false });
+});
 
-export { User, Instructor };
+// Soft delete method
+UserSchema.methods.softDelete = function () {
+  this.isDeleted = true;
+  return this.save();
+};
+
+// Virtuals for easy access
+UserSchema.virtual("isStudent").get(function () {
+  return this.role === "student";
+});
+
+UserSchema.virtual("isInstructor").get(function () {
+  return this.role === "instructor";
+});
+
+// Optional: Clean up unused fields based on role (on save)
+UserSchema.pre("save", function (next) {
+  if (this.role === "student") {
+    this.bio = undefined;
+    this.courses = undefined;
+  } else if (this.role === "instructor") {
+    this.enrolledCourses = undefined;
+    this.wallet = undefined;
+    this.usedCoupons = undefined;
+  }
+  next();
+});
+
+const User = model("User", UserSchema);
+export default User;

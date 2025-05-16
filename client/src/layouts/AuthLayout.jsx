@@ -4,19 +4,17 @@ import bgVideo from "@/assets/videos/bg.mp4";
 
 const AuthLayout = () => {
   return (
-    <section className="w-dvw h-dvh grid grid-cols-2">
+    <section className="w-dvw h-dvh max-md:place-center md:grid md:grid-cols-2">
       <video
         autoPlay
         loop
         muted
         playsInline
-        className="w-full h-full object-cover"
+        className="hidden md:block w-full h-full object-cover"
       >
         <source src={bgVideo} type="video/mp4" />
       </video>
-      <div className="place-center">
-        <Outlet />
-      </div>
+      <Outlet />
     </section>
   );
 };

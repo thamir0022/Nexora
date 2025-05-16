@@ -15,6 +15,7 @@
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^16.5.0",
     "e-learning-api": "file:",
     "express": "^5.1.0",
@@ -23,6 +24,7 @@
     "module-alias": "^2.2.3",
     "mongodb": "^6.16.0",
     "mongoose": "^8.14.1",
+    "nodemailer": "^7.0.3",
     "zod": "^3.24.4"
   },
   "devDependencies": {

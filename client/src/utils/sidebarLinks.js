@@ -130,11 +130,11 @@ const adminNav = {
       items: [
         {
           title: "All Courses",
-          url: "/dashboard?tab=all-courses",
+          url: "/dashboard?tab=courses",
         },
         {
           title: "Instructor Requests",
-          url: "/dashboard?tab=instructor-reqs",
+          url: "/dashboard?tab=pending-instructors",
         },
       ],
     },

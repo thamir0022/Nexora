@@ -1,7 +1,7 @@
 import { AppError } from "./apperror.js";
 import jwt from "jsonwebtoken";
 import { JWT_ACCESS_TOKEN_SECRET } from "./env.js";
-import { User } from "../models/user.model.js";
+import User from "../models/user.model.js";
 
 export const verifyUser = async (req, res, next) => {
   try {

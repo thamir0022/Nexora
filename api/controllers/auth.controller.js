@@ -1,6 +1,5 @@
 /* eslint-disable no-unused-vars */
 import { AppError } from "../utils/apperror.js";
-import { User } from "../models/user.model.js";
 import {
   signInSchema,
   signUpSchema,
@@ -11,73 +10,148 @@ import {
   generateRefreshToken,
 } from "../utils/jwtGenerator.js";
 import jwt from "jsonwebtoken";
-import { GOOGLE_CLIENT_ID, JWT_REFRESH_TOKEN_SECRET } from "../utils/env.js";
+import {
+  GOOGLE_CLIENT_ID,
+  JWT_REFRESH_TOKEN_SECRET,
+  NODEMAILER_EMAIL,
+} from "../utils/env.js";
 import { handleZodError } from "../utils/handleZodError.js";
 import { googleAuthClient } from "../config/googleAuth.js";
+import { transporter } from "../config/nodemailer.js";
+import { generateOtp } from "../utils/otpgenerator.js";
+import Otp from "../models/otp.model.js";
+import User from "../models/user.model.js"
 
-export const signUp = async (req, res, next) => {
+export const sentOtp = async (req, res, next) => {
   try {
-    // ✅ Validate and parse data
-    const parsed = signUpSchema.safeParse(req.body);
-    if (!parsed.success) {
-      return res.status(400).json({
-        success: false,
-        message: "Validation error",
-        errors: handleZodError(parsed.error),
-      });
-    }
+    const { email } = req.body || {};
 
-    const { fullName, email, mobile, password, role } = parsed.data;
+    if (!email) throw new AppError("Email is required", 400);
 
-    // ✅ Check for existing user
-    const existingUser = await User.findOne({ email }).exec();
-    if (existingUser) throw new AppError("User already exists", 409);
+    const user = await User.findOne({ email }).exec();
 
-    // ✅ Hash password
-    const salt = await bcrypt.genSalt(10); // 10 rounds
-    const hashedPassword = await bcrypt.hash(password, salt);
+    if (user) throw new AppError("User already exists", 409);
 
-    // ✅ Create user
-    const newUser = new User({
-      fullName,
+    const existingOtp = await Otp.findOne({ email }).lean();
+
+    if (existingOtp)
+      throw new AppError("OTP already send, Try again after some time", 429);
+
+    const generatedOtp = generateOtp();
+
+    Otp.create({
       email,
-      mobile,
-      password: hashedPassword,
-      role,
+      otp: generatedOtp,
     });
-    await newUser.save();
 
-    if (newUser.role === "student") {
-      // ✅ Generate tokens
-      const accessToken = generateAccessToken({ id: newUser._id, role });
-      const refreshToken = generateRefreshToken({ id: newUser._id });
+    const info = await transporter.sendMail({
+      from: `"E Learning" <${NODEMAILER_EMAIL}>`,
+      to: `${email}`,
+      subject: "OTP for your email verification",
+      text: `Hello, Man`, // plain‑text body
+      html: `<p>Here is your OTP to verify your email : <b>${generatedOtp}</b></p>`, // HTML body
+    });
 
-      // ✅ Set refresh token in HTTP-only secure cookie
-      res.cookie("refresh_token", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
-        maxAge: 1000 * 60 * 60, //1 hour
-      });
+    console.log(info.messageId);
 
-      // ✅ Send access token in JSON response
-      const { password: _, ...userData } = newUser._doc;
+    res.status(200).json({ success: true, message: "Otp send successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
 
-      return res.status(201).json({
+export const verifyOtp = async (req, res, next) => {
+  try {
+    const { email, otp } = req.body || {};
+
+    if (!otp || !email) throw new AppError("Email and Otp are required", 400);
+
+    const existingOtp = await Otp.findOne({ email }).lean();
+
+    if (!existingOtp) throw new AppError("Otp expired, Try resend OTP", 404);
+
+    if (existingOtp.otp !== otp)
+      throw new AppError("Incorrect Otp, Try again", 400);
+
+    const newUser = await User.create({
+      email,
+      emailVerified: true,
+    });
+
+    res
+      .status(201)
+      .json({
         success: true,
-        message: "Sign up successful",
-        user: userData,
-        accessToken,
-      });
-    } else {
-      // If the user is an instructor
-      return res.status(201).json({
-        success: true,
-        message: "Sign up successful. Please complete your profile.",
+        message: "OTP verified successfully",
         user: newUser,
       });
-    }
   } catch (error) {
+    next(error);
+  }
+};
+
+export const registerUser = async (req, res, next) => {
+  try {
+    const { userId, fullName, email, mobile, password, role } = req.body;
+
+    // Validate required fields
+    if (!userId || !fullName || !email || !mobile || !password || !role) {
+      throw new AppError('All fields are required', 400);
+    }
+
+    if (!['student', 'instructor'].includes(role)) {
+      throw new AppError('Invalid role selected', 400);
+    }
+
+    // Find user by ID
+    const existingUser = await User.findById(userId);
+    if (!existingUser || existingUser.email !== email) {
+      throw new AppError('User not found or email mismatch', 404);
+    }
+
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update user details
+    existingUser.fullName = fullName;
+    existingUser.mobile = mobile;
+    existingUser.password = hashedPassword;
+    existingUser.role = role;
+    existingUser.status = role === 'student' ? 'active' : 'pending';
+
+    const updatedUser = await existingUser.save();
+
+    const { password: _, ...userResponse } = updatedUser.toObject();
+
+    // If student, generate tokens
+    if (role === 'student') {
+      const accessToken = generateAccessToken({ id: updatedUser._id, role });
+      const refreshToken = generateRefreshToken({ id: updatedUser._id });
+
+      res.cookie('refresh_token', refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'Strict',
+        maxAge: 3600000, // 1 hour
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: 'Student registered successfully',
+        user: userResponse,
+        accessToken,
+      });
+    }
+
+    // If instructor, prompt profile completion
+    return res.status(201).json({
+      success: true,
+      message: 'Instructor registered successfully. Please complete your profile.',
+      user: userResponse,
+    });
+
+  } catch (error) {
+    console.error('Register User Error:', error);
     next(error);
   }
 };
@@ -101,16 +175,21 @@ export const signIn = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new AppError("Invalid email or password", 400);
 
+    const {status} = user._doc;
+
+    if(status !== "active"){
+      throw new AppError(`Your account is ${status}`, 403, `account-${status}`);
+    }  
+
     // ✅ Generate tokens
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user._id });
 
-    //  ✅ Set refresh token in HTTP-only secure cookie
+    // ✅ Set refresh token in HTTP-only secure cookie
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 1000 * 60 * 60, //1 hour
     });
 
     // ✅ Send access token in JSON response

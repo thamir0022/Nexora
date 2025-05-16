@@ -10,7 +10,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
         <AuthProvider>
           <App />
           <Toaster />

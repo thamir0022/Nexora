@@ -1,7 +1,7 @@
 export const globalErrorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal server error';
-  let statusText = 'error';
+  let statusText = err.statusText || 'error';
 
   const isDevelopment = process.env.NODE_ENV === 'development';
 

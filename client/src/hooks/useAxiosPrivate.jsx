@@ -4,6 +4,7 @@ import useRefreshToken from "./useRefreshToken";
 import { useAccessToken } from "./useAccessToken";
 import { useAuth } from "./useAuth";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const useAxiosPrivate = () => {
   const refresh = useRefreshToken();
@@ -47,6 +48,8 @@ const useAxiosPrivate = () => {
 
             return Promise.reject(refreshError);
           }
+        } else if (error?.response?.status === 403 && ["account-pending", "account-suspended"].includes(error?.response?.statusText)) {
+          toast.error(error.response.message, {description: "Please contact support"});
         }
 
         return Promise.reject(error);
