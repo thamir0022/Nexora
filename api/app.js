@@ -6,6 +6,7 @@ import instructorRoutes from "./routes/instructor.route.js";
 import userRoutes from "./routes/user.routes.js";
 import courseRoutes from "./routes/course.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
+import cloudinaryRoutes from "./routes/cloudinary.routes.js";
 import { connectMongodb } from "./config/mongodb.js";
 import { globalErrorHandler } from "./middlewares/globalmiddleware.js";
 import { notFoundHandler } from "./middlewares/notFoundHandler.js";
@@ -34,6 +35,7 @@ app.use("/api/v1/instructors", instructorRoutes);
 app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/cloudinary", cloudinaryRoutes);
 app.all("/*splat", notFoundHandler);
 
 app.use(globalErrorHandler);

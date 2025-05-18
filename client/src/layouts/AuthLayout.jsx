@@ -10,7 +10,7 @@ const AuthLayout = () => {
         loop
         muted
         playsInline
-        className="hidden md:block w-full h-full object-cover"
+        className="max-md:hidden w-full h-full object-cover"
       >
         <source src={bgVideo} type="video/mp4" />
       </video>

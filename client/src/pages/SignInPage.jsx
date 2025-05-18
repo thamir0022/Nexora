@@ -124,7 +124,7 @@ function SignInPage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-left" />
                   </FormItem>
                 )}
               />
@@ -143,7 +143,7 @@ function SignInPage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormMessage />
+                    <FormMessage className="text-left" />
                   </FormItem>
                 )}
               />
@@ -169,7 +169,7 @@ function SignInPage() {
             </form>
           </Form>
         </div>
-        <p className="text-sm max-w-sm">
+        <p className="text-sm max-w-sm mx-auto">
           By clicking sign in, you agree to our{" "}
           <span className="link underline">Terms of Service</span> and{" "}
           <span className="link underline">Privacy Policy</span>.

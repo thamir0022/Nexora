@@ -110,18 +110,8 @@ const adminNav = {
     },
     {
       title: "Users",
-      url: "/dashboard?tab=students",
+      url: "/dashboard?tab=users",
       icon: UsersRound,
-      items: [
-        {
-          title: "Students",
-          url: "/dashboard?tab=students",
-        },
-        {
-          title: "Instructors",
-          url: "/dashboard?tab=instructors",
-        },
-      ],
     },
     {
       title: "Courses",

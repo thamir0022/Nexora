@@ -1,4 +1,3 @@
-// models/Offer.js
 import mongoose from "mongoose";
 
 const offerSchema = new mongoose.Schema(

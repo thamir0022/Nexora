@@ -1,70 +1,52 @@
-import axios from "axios";
-const CLOUDNAME = import.meta.env.VITE_CLOUDNAME;
-const UPLOADPRESET = import.meta.env.VITE_UPLOADPRESET;
+import axios from "@/config/axios";
+
+const UPLOAD_CONFIG = {
+  userProfilePhoto: ({ userId }) => `users/${userId}/profile`,
+  courseThumbnail: ({ courseSlug }) => `courses/${courseSlug}/thumbnail`,
+  lessonVideo: ({ courseSlug, lessonSlug }) => `courses/${courseSlug}/lessons/${lessonSlug}/video`,
+  lessonThumbnail: ({ courseSlug, lessonSlug }) => `courses/${courseSlug}/lessons/${lessonSlug}/thumbnail`,
+  lessonNote: ({ courseSlug, lessonSlug, noteId }) => `courses/${courseSlug}/lessons/${lessonSlug}/notes/${noteId}`,
+  instructorCertificate: ({ instructorId, certIndex = 1 }) => `instructors/${instructorId}/certificates/certificate-${certIndex}`,
+};
 
 /**
- * Uploads a file to Cloudinary using a standardized folder structure
+ * Uploads a file to Cloudinary with overwrite using signature from backend
  * @param {File} file - File to upload
- * @param {'user' | 'courseThumbnail' | 'lessonVideo' | 'lessonThumbnail' | 'lessonNote' | 'instructorCertificate'} type - Entity type
- * @param {Object} identifiers - Related IDs/slugs
+ * @param {'userProfilePhoto' | 'courseThumbnail' | 'lessonVideo' | 'lessonThumbnail' | 'lessonNote' | 'instructorCertificate'} type
+ * @param {Object} identifiers - Related IDs or slugs
  */
 export const uploadToCloudinary = async (file, type, identifiers) => {
-  let folder = "";
-  let publicId = "";
+  const getPublicId = UPLOAD_CONFIG[type];
+  if (!getPublicId) throw new Error("Unknown upload type.");
 
-  switch (type) {
-    case "user":
-      folder = `users/${identifiers.userId}`;
-      publicId = `${folder}/profile`;
-      break;
+  const publicId = getPublicId(identifiers);
 
-    case "courseThumbnail":
-      folder = `courses/${identifiers.courseSlug}`;
-      publicId = `${folder}/thumbnail`;
-      break;
+  // Get signature from backend
+  const signatureRes = await axios.get('/cloudinary/signature', {
+    params: {
+      public_id: publicId,
+    },
+  });
 
-    case "lessonVideo":
-      folder = `courses/${identifiers.courseSlug}/lessons/${identifiers.lessonSlug}`;
-      publicId = `${folder}/video`;
-      break;
+  const { signature, timestamp, apiKey, cloudName } = signatureRes.data;
 
-    case "lessonThumbnail":
-      folder = `courses/${identifiers.courseSlug}/lessons/${identifiers.lessonSlug}`;
-      publicId = `${folder}/thumbnail`;
-      break;
-
-    case "lessonNote":
-      folder = `courses/${identifiers.courseSlug}/lessons/${identifiers.lessonSlug}/notes`;
-      publicId = `${folder}/${identifiers.noteId}`;
-      break;
-
-    case "instructorCertificate":
-      folder = `instructors/${identifiers.instructorId}/certificates`;
-      publicId = `${folder}/certificate-${identifiers.certIndex || 1}`; // certificate-1.png
-      break;
-
-    default:
-      throw new Error("Unknown upload type.");
-  }
-
-  const url = `https://api.cloudinary.com/v1_1/${CLOUDNAME}/upload`;
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", UPLOADPRESET);
-  formData.append("folder", folder);
   formData.append("public_id", publicId);
+  formData.append("api_key", apiKey);
+  formData.append("timestamp", timestamp);
+  formData.append("signature", signature);
+  formData.append("overwrite", "true"); // explicitly request overwrite
+
+  const url = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
 
   try {
-    const res = await axios.post(url, formData, {
+    const { data } = await axios.post(url, formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
-
-    return res.data.secure_url;
+    return data.secure_url;
   } catch (error) {
-    console.error(
-      "Cloudinary upload failed:",
-      error.response?.data || error.message
-    );
+    console.error("Cloudinary upload failed:", error.response?.data || error.message);
     throw error;
   }
 };

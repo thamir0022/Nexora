@@ -4,7 +4,7 @@ import { deleteUser, getUser, updateUser } from "../controllers/user.controller.
 
 const router = Router();
 
-router.get("/", verifyUser, getUser);
+router.get("/:userId", verifyUser, getUser);
 router.patch("/:userId", verifyUser, updateUser);
 router.delete("/:userId", verifyUser, deleteUser);
 

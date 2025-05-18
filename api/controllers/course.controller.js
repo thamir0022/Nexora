@@ -12,9 +12,8 @@ export const getAllCourses = async (req, res, next) => {
       .populate("instructor", "fullName profilePicture")
       .lean();
 
-    if (!courses) {
-      throw new AppError("No courses found", 404);
-    }
+    if (!courses) throw new AppError("No courses found", 404);
+
     // Transform category to string array
     const formattedCourses = courses.map((course) => ({
       ...course,
@@ -36,11 +35,11 @@ export const getCourseById = async (req, res, next) => {
   try {
     const { courseId } = req.params;
 
-    if(!courseId || !isValidObjectId(courseId)) {
+    if (!courseId || !isValidObjectId(courseId)) {
       const message = courseId ? "Invalid course Id" : "Course Id is required";
-      throw  new AppError(message);
+      throw new AppError(message);
     }
-    
+
     const course = await Course.findById(courseId)
       .populate("category instructor lessons")
       .lean();

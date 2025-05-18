@@ -21,11 +21,12 @@ export const verifyUser = async (req, res, next) => {
       return next(new AppError("User not found", 404));
     }
 
-    if (user.status === "suspended") {
-      return next(
-        new AppError("Your account is suspended. Please contact support.", 403)
+    if (user.status !== "active")
+      throw new AppError(
+        `Your account is ${user.status}. Please contact support.`,
+        403,
+        `account-${user.status}`
       );
-    }
 
     req.user = user;
     next();
