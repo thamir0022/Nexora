@@ -1,5 +1,9 @@
 import { Suspense, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from "react-router-dom";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -9,13 +13,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAccessToken } from "@/hooks/useAccessToken";
 
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -28,6 +25,13 @@ import { Input } from "@/components/ui/input";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Loader } from "lucide-react";
 
 // Define validation schema with Zod
 const signInSchema = z.object({
@@ -40,11 +44,18 @@ const signInSchema = z.object({
     .min(6, { message: "Password must be at least 6 characters" }),
 });
 
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
 function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
+  const [open, setOpen] = useState(false);
   const { setUser } = useAuth();
   const { setToken } = useAccessToken();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const from = searchParams.get("from");
 
   // Initialize form with react-hook-form and zod resolver
   const form = useForm({
@@ -52,6 +63,13 @@ function SignInPage() {
     defaultValues: {
       email: "",
       password: "",
+    },
+  });
+
+  const forgotPassForm = useForm({
+    resolver: zodResolver(forgotPasswordSchema),
+    defaultValues: {
+      email: "",
     },
   });
 
@@ -71,11 +89,10 @@ function SignInPage() {
       setUser(response.data.user);
       setToken(response.data.accessToken);
 
-      const redirectUrl =
-        response.data.user.role === "student" ? "/" : "/dashboard";
-
+      const redirectUrl = from ?? (response.data.user.role === "student" ? "/" : "/dashboard");
+  
       // Navigate
-      navigate(redirectUrl);
+      navigate(redirectUrl, {replace: true});
     } catch (error) {
       // Handle API errors
       if (error.response) {
@@ -87,6 +104,26 @@ function SignInPage() {
       } else {
         toast.error("Unable to connect to the server. Please try again.");
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendResetLink = async (data) => {
+    setIsLoading(true);
+    try {
+      const res = await axios.post("/auth/forgot-password", data);
+
+      if (!res.data.success) return toast.error(res.data.message);
+
+      toast.success(res.data.message, {
+        description: "Check your inbox for the link",
+      });
+      setOpen(false);
+    } catch (error) {
+      const errorMessage =
+        error.response.data.message || "Something went wrong, Try Again";
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
@@ -148,9 +185,49 @@ function SignInPage() {
                 )}
               />
 
-              <Link className="text-sm link self-end" to="/forgot-password">
-                Forgot password?
-              </Link>
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger className="text-right link">
+                  Forgot password?
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader className="text-2xl text-center">
+                    Forgot Your Password
+                  </DialogHeader>
+                  <Form {...forgotPassForm}>
+                    <form
+                      onSubmit={forgotPassForm.handleSubmit(
+                        handleSendResetLink
+                      )}
+                      className="flex flex-col gap-3"
+                    >
+                      <FormField
+                        control={forgotPassForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Enter your registered email</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="email"
+                                placeholder="yourname@example.com"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <Button className="w-1/2 mx-auto">
+                        {isLoading ? (
+                          <Loader className="size-7 animate-spin" />
+                        ) : (
+                          "Submit"
+                        )}
+                      </Button>
+                    </form>
+                  </Form>
+                </DialogContent>
+              </Dialog>
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? "Signing In..." : "Sign In"}
               </Button>

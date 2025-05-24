@@ -36,7 +36,6 @@ const courseSchema = new Schema(
     enrolledCount: {
       type: Number,
       default: 0,
-      min: 0,
     },
     rating: {
       averageRating: {
@@ -57,18 +56,31 @@ const courseSchema = new Schema(
         required: true,
       },
     ],
-    lessonCount: {
-      type: Number,
-      default: 0,
-    },
     thumbnailImage: {
       type: String,
       required: true,
       trim: true,
     },
+    tags: {
+      type: [String],
+      required: true,
+      validate: (v) => Array.isArray(v) && v.length > 0,
+    },
+    keywords: {
+      type: [String],
+      required: true,
+    },
   },
   { timestamps: true }
 );
+
+// Text index for searching
+courseSchema.index({
+  title: "text",
+  description: "text",
+  keywords: "text",
+  tags: "text",
+});
 
 const Course = mongoose.model("Course", courseSchema);
 

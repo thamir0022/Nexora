@@ -1,20 +1,48 @@
-"use client"
+"use client";
 
-import { useEffect, useState } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { toast } from "sonner"
-import useAxiosPrivate from "@/hooks/useAxiosPrivate"
-import { format } from "date-fns"
-import { Clock, BookOpen, Users, Star, CheckCircle, Play, Edit, Trash, Eye, BarChart3, Plus, AlertTriangle, ArrowLeft, MoreHorizontal, Calendar } from 'lucide-react'
+import { useEffect, useState } from "react";
+import { useParams, useNavigate, Link } from "react-router-dom";
+import { toast } from "sonner";
+import useAxiosPrivate from "@/hooks/useAxiosPrivate";
+import { format } from "date-fns";
+import {
+  Clock,
+  BookOpen,
+  Users,
+  Star,
+  CheckCircle,
+  Play,
+  Edit,
+  Trash,
+  Eye,
+  BarChart3,
+  Plus,
+  AlertTriangle,
+  ArrowLeft,
+  MoreHorizontal,
+  Calendar,
+} from "lucide-react";
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Separator } from "@/components/ui/separator"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Progress } from "@/components/ui/progress"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,7 +50,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+} from "@/components/ui/dropdown-menu";
 import {
   Dialog,
   DialogContent,
@@ -31,98 +59,108 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
-import { Switch } from "@/components/ui/switch"
-import { Label } from "@/components/ui/label"
+} from "@/components/ui/dialog";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const AdminSingleCoursePage = () => {
-  const [course, setCourse] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isPublished, setIsPublished] = useState(false)
-  const { courseId } = useParams()
-  const axios = useAxiosPrivate()
-  const navigate = useNavigate()
+  const [course, setCourse] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isPublished, setIsPublished] = useState(false);
+  const { courseId } = useParams();
+  const axios = useAxiosPrivate();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchCourse = async () => {
       try {
-        setLoading(true)
-        const res = await axios.get(`/courses/${courseId}`)
+        setLoading(true);
+        const res = await axios.get(`/courses/${courseId}`);
 
         if (!res.data?.success) {
-          const message = res.data?.message || "Something went wrong"
-          toast.error(message)
-          setError(message)
-          return
+          const message = res.data?.message || "Something went wrong";
+          toast.error(message);
+          setError(message);
+          return;
         }
 
-        setCourse(res.data.data)
+        setCourse(res.data.data);
         // Assuming the course has a published field, otherwise you can add this logic
-        setIsPublished(res.data.data.status === "published")
+        setIsPublished(res.data.data.status === "published");
       } catch (error) {
-        console.error(error)
-        const message = error.response?.data?.message || "Something went wrong"
-        toast.error(message)
-        setError(message)
+        console.error(error);
+        const message = error.response?.data?.message || "Something went wrong";
+        toast.error(message);
+        setError(message);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
+    };
 
-    fetchCourse()
-  }, [courseId, axios])
+    fetchCourse();
+  }, [courseId, axios]);
 
   // Format duration from minutes to hours and minutes
   const formatDuration = (minutes) => {
-    if (!minutes) return "0 min"
-    const hours = Math.floor(minutes / 60)
-    const mins = minutes % 60
+    if (!minutes) return "0 min";
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
 
-    if (hours === 0) return `${mins} min`
-    if (mins === 0) return `${hours} hr`
-    return `${hours} hr ${mins} min`
-  }
+    if (hours === 0) return `${mins} min`;
+    if (mins === 0) return `${hours} hr`;
+    return `${hours} hr ${mins} min`;
+  };
 
   // Calculate total course duration
   const getTotalDuration = () => {
-    if (!course?.lessons) return 0
-    return course.lessons.reduce((total, lesson) => total + (lesson.duration || 0), 0)
-  }
+    if (!course?.lessons) return 0;
+    return course.lessons.reduce(
+      (total, lesson) => total + (lesson.duration || 0),
+      0
+    );
+  };
 
   // Format date
   const formatDate = (dateString) => {
     try {
-      return format(new Date(dateString), "MMMM dd, yyyy")
+      return format(new Date(dateString), "MMMM dd, yyyy");
     } catch (error) {
-      return "Unknown date"
+      return "Unknown date";
     }
-  }
+  };
 
   // Handle course deletion
   const handleDeleteCourse = async () => {
     try {
-      await axios.delete(`/courses/${courseId}`)
-      toast.success("Course deleted successfully")
-      navigate("/admin/courses")
+      await axios.delete(`/courses/${courseId}`);
+      toast.success("Course deleted successfully");
+      navigate("/admin/courses");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to delete course")
+      toast.error(error.response?.data?.message || "Failed to delete course");
     } finally {
-      setIsDeleteDialogOpen(false)
+      setIsDeleteDialogOpen(false);
     }
-  }
+  };
 
   // Handle course publish status change
   const handlePublishStatusChange = async (status) => {
     try {
-      await axios.patch(`/courses/${courseId}`, { status: status ? "published" : "draft" })
-      setIsPublished(status)
-      toast.success(`Course ${status ? "published" : "unpublished"} successfully`)
+      await axios.patch(`/courses/${courseId}`, {
+        status: status ? "published" : "draft",
+      });
+      setIsPublished(status);
+      toast.success(
+        `Course ${status ? "published" : "unpublished"} successfully`
+      );
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to update course status")
+      toast.error(
+        error.response?.data?.message || "Failed to update course status"
+      );
     }
-  }
+  };
 
   if (loading) {
     return (
@@ -135,7 +173,7 @@ const AdminSingleCoursePage = () => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -153,17 +191,17 @@ const AdminSingleCoursePage = () => {
           </CardFooter>
         </Card>
       </div>
-    )
+    );
   }
 
-  if (!course) return null
+  if (!course) return null;
 
   return (
     <div className="container mx-auto py-8 px-4">
       {/* Admin Header with Actions */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={() => navigate("/admin/courses")}>
+          <Button variant="outline" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-bold">Course Management</h1>
@@ -178,24 +216,37 @@ const AdminSingleCoursePage = () => {
             />
             <Label htmlFor="publish-status">
               {isPublished ? (
-                <Badge variant="success" className="bg-green-500">Published</Badge>
+                <Badge variant="success" className="bg-green-500">
+                  Published
+                </Badge>
               ) : (
                 <Badge variant="outline">Draft</Badge>
               )}
             </Label>
           </div>
 
-          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/courses/edit/${courseId}`)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/admin/courses/edit/${courseId}`)}
+          >
             <Edit className="h-4 w-4 mr-2" />
             Edit
           </Button>
 
-          <Button variant="outline" size="sm" onClick={() => window.open(`/courses/${courseId}`, "_blank")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => window.open(`/courses/${courseId}`, "_blank")}
+          >
             <Eye className="h-4 w-4 mr-2" />
             Preview
           </Button>
 
-          <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <Dialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+          >
             <DialogTrigger asChild>
               <Button variant="destructive" size="sm">
                 <Trash className="h-4 w-4 mr-2" />
@@ -204,13 +255,19 @@ const AdminSingleCoursePage = () => {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Are you sure you want to delete this course?</DialogTitle>
+                <DialogTitle>
+                  Are you sure you want to delete this course?
+                </DialogTitle>
                 <DialogDescription>
-                  This action cannot be undone. This will permanently delete the course and all associated lessons.
+                  This action cannot be undone. This will permanently delete the
+                  course and all associated lessons.
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsDeleteDialogOpen(false)}
+                >
                   Cancel
                 </Button>
                 <Button variant="destructive" onClick={handleDeleteCourse}>
@@ -224,7 +281,7 @@ const AdminSingleCoursePage = () => {
 
       {/* Course Overview Card */}
       <Card className="mb-8">
-        <CardHeader className="pb-2">
+        {/* <CardHeader className="pb-2">
           <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
             <div>
               <CardTitle className="text-2xl">{course.title}</CardTitle>
@@ -247,53 +304,48 @@ const AdminSingleCoursePage = () => {
               </div>
             </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm font-medium">Duration</div>
-                  <Clock className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold mt-2">{formatDuration(getTotalDuration())}</div>
-              </CardContent>
-            </Card>
+        </CardHeader> */}
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm font-medium">Lessons</div>
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold mt-2">{course.lessons?.length || 0}</div>
-              </CardContent>
-            </Card>
+        <CardContent className="space-y-2">
+          <div className="rounded-xl overflow-hidden aspect-video">
+            <img
+              src={
+                course.thumbnailImage || "/placeholder.svg?height=200&width=400"
+              }
+              alt={course.title}
+              className="w-full h-auto object-cover aspect-video"
+            />
+          </div>
+          <h2 className="text-2xl line-clamp-2">{course.title}</h2>
 
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm font-medium">Enrolled</div>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </div>
-                <div className="text-2xl font-bold mt-2">{course.enrolledCount?.toLocaleString() || 0}</div>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="pt-6">
-                <div className="flex justify-between items-center">
-                  <div className="text-sm font-medium">Rating</div>
-                  <Star className="h-4 w-4 text-yellow-500" />
-                </div>
-                <div className="text-2xl font-bold mt-2">
-                  {course.rating?.averageRating || "0.0"}{" "}
-                  <span className="text-sm font-normal text-muted-foreground">
-                    ({course.rating?.ratingCount || 0})
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+          {course.instructor ? (
+            <div className="flex items-center gap-4">
+              <Avatar className="size-10">
+                <AvatarImage src={course.instructor.profilePicture} />
+                <AvatarFallback>
+                  {course.instructor?.fullName?.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <Link to="#" className="font-semibold text-lg">
+                {course.instructor.fullName}
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" />
+              <p>No instructor assigned to this course</p>
+            </div>
+          )}
+          <Separator />
+          <p className="text-muted-foreground">{course.description}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            {course.category?.map((cat) => (
+              <Link to="#">
+                <Badge key={cat._id} variant="secondary">
+                  {cat.name}
+                </Badge>
+              </Link>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -301,7 +353,7 @@ const AdminSingleCoursePage = () => {
       {/* Course Content Tabs */}
       <Tabs defaultValue="details" className="w-full">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="details">Details</TabsTrigger>
+          <TabsTrigger value="details">Overview</TabsTrigger>
           <TabsTrigger value="lessons">Lessons</TabsTrigger>
           <TabsTrigger value="students">Students</TabsTrigger>
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
@@ -314,9 +366,57 @@ const AdminSingleCoursePage = () => {
               <CardTitle>Course Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Description</h3>
-                <p className="text-muted-foreground">{course.description}</p>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium">Duration</div>
+                      <Clock className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="text-2xl font-bold mt-2">
+                      {formatDuration(getTotalDuration())}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium">Lessons</div>
+                      <BookOpen className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="text-2xl font-bold mt-2">
+                      {course.lessons?.length || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium">Enrolled</div>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="text-2xl font-bold mt-2">
+                      {course.enrolledCount?.toLocaleString() || 0}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="flex justify-between items-center">
+                      <div className="text-sm font-medium">Rating</div>
+                      <Star className="h-4 w-4 text-yellow-500" />
+                    </div>
+                    <div className="text-2xl font-bold mt-2">
+                      {course.rating?.averageRating || "0.0"}{" "}
+                      <span className="text-sm font-normal text-muted-foreground">
+                        ({course.rating?.ratingCount || 0})
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
 
               <Separator />
@@ -332,43 +432,7 @@ const AdminSingleCoursePage = () => {
                   ))}
                 </ul>
               </div>
-
               <Separator />
-
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Instructor</h3>
-                {course.instructor ? (
-                  <div className="flex items-start gap-4">
-                    <img
-                      src={course.instructor.profilePicture || "/placeholder.svg?height=80&width=80"}
-                      alt={course.instructor.name}
-                      className="rounded-full w-16 h-16 object-cover"
-                    />
-                    <div>
-                      <h3 className="font-semibold text-lg">{course.instructor.name}</h3>
-                      <p className="text-sm text-muted-foreground">{course.instructor.bio}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-amber-600">
-                    <AlertTriangle className="h-5 w-5" />
-                    <p>No instructor assigned to this course</p>
-                  </div>
-                )}
-              </div>
-
-              <Separator />
-
-              <div>
-                <h3 className="text-lg font-semibold mb-2">Thumbnail</h3>
-                <div className="rounded-lg overflow-hidden border w-full max-w-md">
-                  <img
-                    src={course.thumbnailImage || "/placeholder.svg?height=200&width=400"}
-                    alt={course.title}
-                    className="w-full h-auto object-cover aspect-video"
-                  />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -377,7 +441,9 @@ const AdminSingleCoursePage = () => {
         <TabsContent value="lessons" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Course Lessons</h2>
-            <Button onClick={() => navigate(`/admin/courses/${courseId}/lessons/add`)}>
+            <Button
+              onClick={() => navigate(`/admin/courses/${courseId}/lessons/add`)}
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add Lesson
             </Button>
@@ -398,11 +464,15 @@ const AdminSingleCoursePage = () => {
                       </AccordionTrigger>
                       <AccordionContent>
                         <div className="space-y-4 pl-6">
-                          <p className="text-sm text-muted-foreground">{lesson.description}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {lesson.description}
+                          </p>
                           <div className="flex flex-wrap gap-4">
                             <div className="flex items-center gap-2">
                               <Clock className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-sm">{formatDuration(lesson.duration)}</span>
+                              <span className="text-sm">
+                                {formatDuration(lesson.duration)}
+                              </span>
                             </div>
                             {lesson.videoUrl && (
                               <div className="flex items-center gap-2">
@@ -413,7 +483,9 @@ const AdminSingleCoursePage = () => {
                             {lesson.noteUrls && lesson.noteUrls.length > 0 && (
                               <div className="flex items-center gap-2">
                                 <BookOpen className="h-4 w-4 text-green-500" />
-                                <span className="text-sm">{lesson.noteUrls.length} resources</span>
+                                <span className="text-sm">
+                                  {lesson.noteUrls.length} resources
+                                </span>
                               </div>
                             )}
                           </div>
@@ -421,7 +493,11 @@ const AdminSingleCoursePage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/admin/courses/${courseId}/lessons/${lesson._id}/edit`)}
+                              onClick={() =>
+                                navigate(
+                                  `/admin/courses/${courseId}/lessons/${lesson._id}/edit`
+                                )
+                              }
                             >
                               <Edit className="h-4 w-4 mr-1" />
                               Edit
@@ -429,7 +505,11 @@ const AdminSingleCoursePage = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => navigate(`/admin/courses/${courseId}/lessons/${lesson._id}`)}
+                              onClick={() =>
+                                navigate(
+                                  `/admin/courses/${courseId}/lessons/${lesson._id}`
+                                )
+                              }
                             >
                               <Eye className="h-4 w-4 mr-1" />
                               View
@@ -446,7 +526,9 @@ const AdminSingleCoursePage = () => {
                                 <DropdownMenuItem>Move Up</DropdownMenuItem>
                                 <DropdownMenuItem>Move Down</DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600">Delete</DropdownMenuItem>
+                                <DropdownMenuItem className="text-red-600">
+                                  Delete
+                                </DropdownMenuItem>
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -459,8 +541,14 @@ const AdminSingleCoursePage = () => {
                 <div className="text-center py-8">
                   <BookOpen className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium mb-2">No lessons yet</h3>
-                  <p className="text-muted-foreground mb-4">This course doesn't have any lessons yet.</p>
-                  <Button onClick={() => navigate(`/admin/courses/${courseId}/lessons/add`)}>
+                  <p className="text-muted-foreground mb-4">
+                    This course doesn't have any lessons yet.
+                  </p>
+                  <Button
+                    onClick={() =>
+                      navigate(`/admin/courses/${courseId}/lessons/add`)
+                    }
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Add First Lesson
                   </Button>
@@ -476,18 +564,26 @@ const AdminSingleCoursePage = () => {
             <CardHeader>
               <CardTitle>Enrolled Students</CardTitle>
               <CardDescription>
-                {course.enrolledCount ? `${course.enrolledCount} students enrolled in this course` : "No students enrolled yet"}
+                {course.enrolledCount
+                  ? `${course.enrolledCount} students enrolled in this course`
+                  : "No students enrolled yet"}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {/* This would typically be a table of enrolled students */}
               <div className="text-center py-8">
                 <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-medium mb-2">Student data not available in this view</h3>
+                <h3 className="text-lg font-medium mb-2">
+                  Student data not available in this view
+                </h3>
                 <p className="text-muted-foreground mb-4">
-                  Visit the students section to see detailed enrollment information.
+                  Visit the students section to see detailed enrollment
+                  information.
                 </p>
-                <Button variant="outline" onClick={() => navigate("/admin/students")}>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate("/admin/students")}
+                >
                   Go to Students
                 </Button>
               </div>
@@ -500,13 +596,17 @@ const AdminSingleCoursePage = () => {
           <Card>
             <CardHeader>
               <CardTitle>Course Analytics</CardTitle>
-              <CardDescription>Performance metrics and engagement statistics</CardDescription>
+              <CardDescription>
+                Performance metrics and engagement statistics
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">Enrollment Trend</CardTitle>
+                    <CardTitle className="text-base">
+                      Enrollment Trend
+                    </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     <div className="h-[200px] flex items-center justify-center">
@@ -532,12 +632,17 @@ const AdminSingleCoursePage = () => {
               </div>
 
               <div className="mt-6">
-                <h3 className="text-lg font-semibold mb-4">Rating Distribution</h3>
+                <h3 className="text-lg font-semibold mb-4">
+                  Rating Distribution
+                </h3>
                 <div className="space-y-2">
                   {[5, 4, 3, 2, 1].map((rating) => (
                     <div key={rating} className="flex items-center gap-2">
                       <div className="w-8 text-sm font-medium">{rating} ★</div>
-                      <Progress value={Math.random() * 100} className="h-2 flex-1" />
+                      <Progress
+                        value={Math.random() * 100}
+                        className="h-2 flex-1"
+                      />
                       <div className="w-12 text-sm text-right text-muted-foreground">
                         {Math.floor(Math.random() * 100)}%
                       </div>
@@ -550,8 +655,7 @@ const AdminSingleCoursePage = () => {
         </TabsContent>
       </Tabs>
     </div>
-  )
-}
+  );
+};
 
-export default AdminSingleCoursePage
-
+export default AdminSingleCoursePage;

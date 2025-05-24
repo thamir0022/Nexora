@@ -15,6 +15,7 @@ const UPLOAD_CONFIG = {
  * @param {'userProfilePhoto' | 'courseThumbnail' | 'lessonVideo' | 'lessonThumbnail' | 'lessonNote' | 'instructorCertificate'} type
  * @param {Object} identifiers - Related IDs or slugs
  */
+
 export const uploadToCloudinary = async (file, type, identifiers) => {
   const getPublicId = UPLOAD_CONFIG[type];
   if (!getPublicId) throw new Error("Unknown upload type.");
@@ -27,7 +28,7 @@ export const uploadToCloudinary = async (file, type, identifiers) => {
       public_id: publicId,
     },
   });
-
+  
   const { signature, timestamp, apiKey, cloudName } = signatureRes.data;
 
   const formData = new FormData();

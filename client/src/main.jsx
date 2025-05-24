@@ -6,13 +6,16 @@ import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { CartProvider } from "./context/CartContext";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
     <BrowserRouter>
-      <ThemeProvider defaultTheme="system" storageKey="vite-ui-theme">
+      <ThemeProvider storageKey="vite-ui-theme">
         <AuthProvider>
-          <App />
+          <CartProvider>
+            <App />
+          </CartProvider>
           <Toaster />
         </AuthProvider>
       </ThemeProvider>

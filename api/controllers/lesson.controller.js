@@ -9,7 +9,7 @@ export const createLesson = async (req, res, next) => {
       title, description, duration, thumbnailImage, videoUrl, noteUrls = [],
     } = req.body;
 
-    if (req.user.role !== "instructor") {
+    if (!["instructor", "admin"].includes(req.user.role)) {
       throw new AppError("Only instructors can create lessons", 403);
     }
 

@@ -16,7 +16,6 @@ const walletTransactionSchema = new Schema({
   status: {
     type: String,
     enum: ["success", "pending", "failed"],
-    default: "success",
   },
   createdAt: {
     type: Date,

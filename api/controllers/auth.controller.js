@@ -1,16 +1,15 @@
 /* eslint-disable no-unused-vars */
 import { AppError } from "../utils/apperror.js";
-import {
-  signInSchema,
-  signUpSchema,
-} from "../utils/validators/user.validator.js";
+import { signInSchema } from "../utils/validators/user.validator.js";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import {
   generateAccessToken,
   generateRefreshToken,
 } from "../utils/jwtGenerator.js";
 import jwt from "jsonwebtoken";
 import {
+  CLIENT_BASE_URL,
   GOOGLE_CLIENT_ID,
   JWT_REFRESH_TOKEN_SECRET,
   NODEMAILER_EMAIL,
@@ -20,15 +19,16 @@ import { googleAuthClient } from "../config/googleAuth.js";
 import { transporter } from "../config/nodemailer.js";
 import { generateOtp } from "../utils/otpgenerator.js";
 import Otp from "../models/otp.model.js";
-import User from "../models/user.model.js"
+import User from "../models/user.model.js";
 
 export const sentOtp = async (req, res, next) => {
   try {
     const { email } = req.body || {};
+    const { forgotPassword } = req.query;
 
     if (!email) throw new AppError("Email is required", 400);
 
-    const user = await User.findOne({ email }).exec();
+    const user = await User.findOne({ email }).lean();
 
     if (user) throw new AppError("User already exists", 409);
 
@@ -78,13 +78,11 @@ export const verifyOtp = async (req, res, next) => {
       emailVerified: true,
     });
 
-    res
-      .status(201)
-      .json({
-        success: true,
-        message: "OTP verified successfully",
-        user: newUser,
-      });
+    res.status(201).json({
+      success: true,
+      message: "OTP verified successfully",
+      user: newUser,
+    });
   } catch (error) {
     next(error);
   }
@@ -96,17 +94,17 @@ export const registerUser = async (req, res, next) => {
 
     // Validate required fields
     if (!userId || !fullName || !email || !mobile || !password || !role) {
-      throw new AppError('All fields are required', 400);
+      throw new AppError("All fields are required", 400);
     }
 
-    if (!['student', 'instructor'].includes(role)) {
-      throw new AppError('Invalid role selected', 400);
+    if (!["student", "instructor"].includes(role)) {
+      throw new AppError("Invalid role selected", 400);
     }
 
     // Find user by ID
     const existingUser = await User.findById(userId);
     if (!existingUser || existingUser.email !== email) {
-      throw new AppError('User not found or email mismatch', 404);
+      throw new AppError("User not found or email mismatch", 404);
     }
 
     // Hash the password
@@ -117,27 +115,27 @@ export const registerUser = async (req, res, next) => {
     existingUser.mobile = mobile;
     existingUser.password = hashedPassword;
     existingUser.role = role;
-    existingUser.status = role === 'student' ? 'active' : 'pending';
+    existingUser.status = role === "student" ? "active" : "pending";
 
     const updatedUser = await existingUser.save();
 
     const { password: _, ...userResponse } = updatedUser.toObject();
 
     // If student, generate tokens
-    if (role === 'student') {
+    if (role === "student") {
       const accessToken = generateAccessToken({ id: updatedUser._id, role });
       const refreshToken = generateRefreshToken({ id: updatedUser._id });
 
-      res.cookie('refresh_token', refreshToken, {
+      res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'Strict',
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Strict",
         maxAge: 3600000, // 1 hour
       });
 
       return res.status(201).json({
         success: true,
-        message: 'Student registered successfully',
+        message: "Student registered successfully",
         user: userResponse,
         accessToken,
       });
@@ -146,12 +144,12 @@ export const registerUser = async (req, res, next) => {
     // If instructor, prompt profile completion
     return res.status(201).json({
       success: true,
-      message: 'Instructor registered successfully. Please complete your profile.',
+      message:
+        "Instructor registered successfully. Please complete your profile.",
       user: userResponse,
     });
-
   } catch (error) {
-    console.error('Register User Error:', error);
+    console.error("Register User Error:", error);
     next(error);
   }
 };
@@ -175,11 +173,11 @@ export const signIn = async (req, res, next) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) throw new AppError("Invalid email or password", 400);
 
-    const {status} = user._doc;
+    const { status } = user._doc;
 
-    if(status !== "active"){
+    if (status !== "active") {
       throw new AppError(`Your account is ${status}`, 403, `account-${status}`);
-    }  
+    }
 
     // ✅ Generate tokens
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
@@ -215,13 +213,20 @@ export const refreshToken = async (req, res, next) => {
     }
 
     let decoded;
+
     try {
       decoded = jwt.verify(refresh_token, JWT_REFRESH_TOKEN_SECRET);
-    } catch (err) {
-      return next(new AppError("Invalid or expired token", 401));
+    } catch (error) {
+      next(
+        new AppError(
+          "Refresh token expired, Sign In Again",
+          401,
+          "invalid-refresh-token"
+        )
+      );
     }
 
-    const user = await User.findById(decoded.id).lean(); // lean() for performance if you're not modifying the doc
+    const user = await User.findById(decoded.id).lean();
 
     if (!user) {
       return next(new AppError("User not found", 404));
@@ -322,4 +327,62 @@ export const signOut = (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+export const sendResetPasswordLink = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user) throw new AppError("User not found", 404);
+
+    const token = crypto.randomBytes(32).toString("hex");
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = Date.now() + 1000 * 60 * 15; // 15 min
+    await user.save();
+
+    const resetUrl = `${CLIENT_BASE_URL}/reset-password/${token}`;
+
+    const info = await transporter.sendMail({
+      from: `"E Learning" <${NODEMAILER_EMAIL}>`,
+      to: `${email}`,
+      subject: "Password Reset Request",
+      text: `Hello, ${user.fullName || "User"}`, // plain‑text body
+      html: `<p>Here is your link for reset your password : <b><a href="${resetUrl}" target="_blank">Reset Password</a></b></p>`, // HTML body
+    });
+
+    console.log(info.messageId);
+
+    res
+      .status(200)
+      .json({ success: true, message: "Password reset link has been sent" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const resetPassword = async (req, res) => {
+  const { token } = req.params;
+  const { password: newPassword } = req.body;
+
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+  const user = await User.findOne({
+    resetPasswordToken: hashedToken,
+    resetPasswordExpires: { $gt: Date.now() },
+  });
+
+  if (!user) throw new AppError("Invalid or expired token", 400);
+
+  const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(newPassword, salt);
+  user.password = hashedPassword;
+  user.resetPasswordToken = undefined;
+  user.resetPasswordExpires = undefined;
+
+  await user.save();
+
+  res.status(200).json({ success: true, message: "Password has been reset" });
 };

@@ -230,8 +230,8 @@ const InstructorRequestDetail = () => {
             <CardContent className="space-y-6">
               {/* Avatar and Name */}
               <div className="flex flex-col items-center text-center">
-                <Avatar className="h-24 w-24 mb-3">
-                  <AvatarFallback className="bg-primary text-primary-foreground text-xl">
+                <Avatar className="size-28 mb-3">
+                  <AvatarFallback className="text-xl">
                     {getInitials(request.fullName)}
                   </AvatarFallback>
                 </Avatar>

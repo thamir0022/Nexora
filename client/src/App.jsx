@@ -9,28 +9,34 @@ import Dashboard from "./pages/Dashboard";
 import PrivateRoutes from "./components/PrivateRoutes";
 import SingleCoursePage from "./pages/SingleCoursePage";
 import InstructorRequestDetail from "./pages/InstructorRequestPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
+import { ScrollArea } from "./components/ui/scroll-area";
 
 const App = () => {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      {/* Auth Pages */}
-      <Route element={<AuthLayout />}>
-        <Route path="sign-in" element={<SignInPage />} />
-        <Route path="sign-up" element={<SignUpPage />} />
-      </Route>
-      
-      <Route element={<PrivateRoutes />}>
-        <Route path="dashboard" element={<DashboadLayout />}>
-          <Route path="" element={<Dashboard />} />
-          <Route path="courses/:courseId" element={<SingleCoursePage />} />
-          <Route
-            path="instructors/requests/:userId"
-            element={<InstructorRequestDetail />}
-          />
+    <ScrollArea className="w-dvw h-dvh overflow-x-hidden scroll-smooth">
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        {/* Auth Pages */}
+        <Route element={<AuthLayout />}>
+          <Route path="sign-in" element={<SignInPage />} />
+          <Route path="sign-up" element={<SignUpPage />} />
         </Route>
-      </Route>
-    </Routes>
+        {/* Reset Password Page */}
+        <Route path="/reset-password/:token" element={<ResetPasswordPage/>}/>
+        
+        <Route element={<PrivateRoutes />}>
+          <Route path="dashboard" element={<DashboadLayout />}>
+            <Route path="" element={<Dashboard />} />
+            <Route path="courses/:courseId" element={<SingleCoursePage />} />
+            <Route
+              path="instructors/requests/:userId"
+              element={<InstructorRequestDetail />}
+            />
+          </Route>
+        </Route>
+      </Routes>
+    </ScrollArea>
   );
 };
 

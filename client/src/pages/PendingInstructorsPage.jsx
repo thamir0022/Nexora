@@ -205,10 +205,10 @@ const PendingInstructorsPage = () => {
                           variant="outline"
                           className={`${
                             instructor.status === "rejected"
-                              ? "bg-red-100"
+                              ? "bg-red-100 border-red-300"
                               : instructor.status === "pending" &&
-                                "bg-yellow-200"
-                          } border-red-300`}
+                                "bg-yellow-100 border-yellow-300"
+                          } capitalize`}
                         >
                           {instructor.status}
                         </Badge>

@@ -3,15 +3,16 @@ import { useEffect } from "react";
 import useRefreshToken from "./useRefreshToken";
 import { useAccessToken } from "./useAccessToken";
 import { useAuth } from "./useAuth";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const useAxiosPrivate = () => {
   const refresh = useRefreshToken();
-  const { token } = useAccessToken();
-  const {setUser} = useAuth();
+  const { token, setToken } = useAccessToken();
+  const { setUser } = useAuth();
   const navigate = useNavigate();
-  
+  const location = useLocation();
+
   useEffect(() => {
     const requestIntercept = axiosPrivate.interceptors.request.use(
       (config) => {
@@ -28,33 +29,36 @@ const useAxiosPrivate = () => {
       async (error) => {
         const prevRequest = error?.config;
 
-        // If access token expired
+        // Access token expired → try refresh
         if (error?.response?.status === 401 && !prevRequest?.sent) {
           prevRequest.sent = true;
-
           try {
             const newAccessToken = await refresh();
+            setToken(newAccessToken);
             prevRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
             return axiosPrivate(prevRequest);
           } catch (refreshError) {
-            // If refresh token is invalid or expired
-            if (
-              refreshError?.response?.status === 401 ||
-              refreshError?.response?.status === 403
-            ) {
-              setUser(null); // Clear auth state
-              navigate("/sign-in"); // Redirect to login
-            }
+            // Refresh token failed → handle logout
+            const message = refreshError?.response?.data?.message;
+            toast.error("Session expired", {
+              description: message || "Please log in again.",
+            });
+            navigate(
+              `/sign-in?from=${encodeURIComponent(location.pathname)}${
+                location.search
+              }`
+            );
+
+            setUser(null);
 
             return Promise.reject(refreshError);
           }
-        } else if (error?.response?.status === 403 && ["account-pending", "account-suspended"].includes(error?.response?.statusText)) {
-          toast.error(error.response.message, {description: "Please contact support"});
         }
 
         return Promise.reject(error);
       }
     );
+
     return () => {
       axiosPrivate.interceptors.request.eject(requestIntercept);
       axiosPrivate.interceptors.response.eject(responseIntercept);

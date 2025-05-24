@@ -2,6 +2,7 @@ import { isValidObjectId } from "mongoose";
 import User from "../models/user.model.js";
 import { AppError } from "../utils/apperror.js";
 import bcrypt from "bcryptjs";
+import Cart from "../models/cart.model.js";
 
 // Helper: Pick only allowed fields from input
 const pickAllowedFields = (source, allowed) => {
@@ -65,7 +66,8 @@ export const updateUser = async (req, res, next) => {
 
     const allowedFields = [...baseFields];
     if (isAdmin) allowedFields.push(...roleBasedFields.admin);
-    if (requester.role === "instructor") allowedFields.push(...roleBasedFields.instructor);
+    if (requester.role === "instructor")
+      allowedFields.push(...roleBasedFields.instructor);
 
     // Pick only allowed updates
     const updates = pickAllowedFields(req.body, allowedFields);
@@ -76,26 +78,36 @@ export const updateUser = async (req, res, next) => {
 
     // Handle password update securely
     if (updates.password) {
-      const existingUser = await User.findById(targetUserId).select("password").lean();
+      const existingUser = await User.findById(targetUserId)
+        .select("password")
+        .lean();
 
       if (!existingUser) {
         throw new AppError("User not found", 404);
       }
 
-      const {oldPassword} = req.body;
+      const { oldPassword } = req.body;
 
-      if(!oldPassword) throw new AppError("Old password is required to update password", 400);
+      if (!oldPassword)
+        throw new AppError("Old password is required to update password", 400);
 
-      const isOldPasswordValid = await bcrypt.compare(oldPassword, existingUser.password);
+      const isOldPasswordValid = await bcrypt.compare(
+        oldPassword,
+        existingUser.password
+      );
 
       if (!isOldPasswordValid) {
         throw new AppError("Old password is incorrect", 400);
       }
 
-      if(updates.password.length < 6) throw new AppError("New password must be at least 6 characters long", 400); 
+      if (updates.password.length < 6)
+        throw new AppError(
+          "New password must be at least 6 characters long",
+          400
+        );
 
       const salt = await bcrypt.genSalt();
-      updates.password = await bcrypt.hash(updates.password, salt); 
+      updates.password = await bcrypt.hash(updates.password, salt);
     }
 
     // Update user
@@ -142,6 +154,133 @@ export const deleteUser = async (req, res, next) => {
     res
       .status(200)
       .json({ success: true, message: "User deleted successfully" });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUserCart = async (req, res, next) => {
+  try {
+    const { _id } = req.user;
+    const { userId } = req.params;
+
+    if (userId != _id && req.user.role !== "admin")
+      throw new AppError("You are not allowed to get this user data", 403);
+
+    const userCart = await Cart.findOne({ userId })
+      .populate("items")
+      .populate({
+        path: "items",
+        populate: {
+          path: "instructor",
+          model: "User",
+          select: "fullName profilePicture", // populate only needed fields
+        },
+      })
+      .lean();
+
+    if (!userCart || userCart.items.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Cart is empty",
+        cart: [],
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Cart retrieved successfully",
+      cart: userCart.items,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const addToCart = async (req, res, next) => {
+  try {
+    const { _id } = req.user;
+    const { userId, courseId } = req.params;
+
+    if (userId != _id && req.user.role !== "admin")
+      throw new AppError("You are not allowed to get this user data", 403);
+
+    if (!courseId || !isValidObjectId(courseId))
+      throw new AppError(
+        courseId ? "Invalid course Id" : "Course Id is required",
+        400
+      );
+
+    let cart = await Cart.findOne({ userId });
+
+    if (cart) {
+      const isCourseInCart = cart.items.find(
+        (item) => item.toString() === courseId
+      );
+
+      if (isCourseInCart) throw new AppError("Course already in cart", 400);
+
+      cart.items.unshift(courseId);
+    } else {
+      cart = new Cart({
+        userId,
+        items: [courseId],
+      });
+    }
+
+    await cart.save();
+
+    const newCart = await cart.populate({
+      path: "items",
+      populate: {
+        path: "instructor",
+        model: "User",
+        select: "fullName profilePicture", // populate only needed fields
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Course added to cart successfully",
+      cart: newCart.items,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const removeFromCart = async (req, res, next) => {
+  try {
+    const { _id } = req.user;
+    const { userId, courseId } = req.params;
+
+    if (userId != _id && req.user.role !== "admin")
+      throw new AppError("You are not allowed to get this user data", 403);
+
+    if (!courseId || !isValidObjectId(courseId))
+      throw new AppError(
+        courseId ? "Invalid course Id" : "Course Id is required",
+        400
+      );
+
+    const cart = await Cart.findOne({ userId });
+
+    if (!cart) throw new AppError("Cart not found", 404);
+
+    const courseIndex = cart.items.findIndex(
+      (item) => item.toString() === courseId
+    );
+
+    if (courseIndex === -1) throw new AppError("Course not found in cart", 404);
+
+    cart.items.splice(courseIndex, 1);
+    await cart.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Course removed from cart successfully",
+      cart,
+    });
   } catch (error) {
     next(error);
   }

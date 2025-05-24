@@ -9,8 +9,9 @@ const categorySchema = new Schema(
       unique: true,
     },
     status: {
-      type: Boolean,
-      default: true, // Active by default
+      type: String,
+      enum: ["active", "disabled", "rejected", "draft"],
+      default: "draft",
     },
     description: {
       type: String,

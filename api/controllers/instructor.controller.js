@@ -152,15 +152,17 @@ export const approveInstructor = async (req, res, next) => {
         400
       );
 
-    await User.findByIdAndUpdate(userId, {
+    const updatedUser = await User.findByIdAndUpdate(userId, {
       $set: {
         status: "active",
       },
-    });
+    },{new: true, runValidators: true});
+
+    if(!updatedUser) throw new AppError("Instructor not found", 404);
 
     res
       .status(200)
-      .json({ success: true, message: "Instructor approved successfully" });
+      .json({ success: true, message: "Instructor approved successfully", instructor: updatedUser });
   } catch (error) {
     next(error);
   }

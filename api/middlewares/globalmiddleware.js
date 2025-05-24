@@ -53,13 +53,13 @@ export const globalErrorHandler = (err, req, res, next) => {
   if (err.name === 'JsonWebTokenError') {
     statusCode = 401;
     message = 'Invalid token. Please log in again.';
-    statusText = 'invalid token';
+    statusText = 'invalid-token';
   }
 
   if (err.name === 'TokenExpiredError') {
     statusCode = 401;
     message = 'Your token has expired. Please log in again.';
-    statusText = 'token expired';
+    statusText = 'token-expired';
   }
 
   // Multer file size

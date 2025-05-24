@@ -25,11 +25,14 @@
     "module-alias": "^2.2.3",
     "mongodb": "^6.16.0",
     "mongoose": "^8.14.1",
+    "natural": "^8.1.0",
     "nodemailer": "^7.0.3",
+    "stopword": "^3.1.4",
     "zod": "^3.24.4"
   },
   "devDependencies": {
     "@eslint/js": "^9.26.0",
+    "@types/stopword": "^2.0.3",
     "eslint": "^9.26.0",
     "globals": "^16.0.0"
   }

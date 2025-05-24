@@ -20,6 +20,7 @@ import {
   UsersRound,
   Rows4,
   ChartPie,
+  Boxes,
 } from "lucide-react";
 
 const sub = [
@@ -110,12 +111,20 @@ const adminNav = {
     },
     {
       title: "Users",
-      url: "/dashboard?tab=users",
       icon: UsersRound,
+      items: [
+        {
+          title: "All Users",
+          url: "/dashboard?tab=users",
+        },
+        {
+          title: "Instructor Requests",
+          url: "/dashboard?tab=pending-instructors",
+        },
+      ],
     },
     {
       title: "Courses",
-      url: "/dashboard?tab=all-courses",
       icon: LibraryBig,
       items: [
         {
@@ -123,10 +132,15 @@ const adminNav = {
           url: "/dashboard?tab=courses",
         },
         {
-          title: "Instructor Requests",
-          url: "/dashboard?tab=pending-instructors",
+          title: "Add Course",
+          url: "/dashboard?tab=add-course",
         },
       ],
+    },
+    {
+      title: "Category",
+      url: "/dashboard?tab=category",
+      icon: Boxes,
     },
     {
       title: "Orders",
@@ -137,7 +151,7 @@ const adminNav = {
       title: "Revenue Analytics",
       url: "/dashboard?tab=orders",
       icon: ChartSpline,
-    }
+    },
   ],
   sub,
 };

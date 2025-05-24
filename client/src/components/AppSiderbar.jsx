@@ -42,11 +42,9 @@ import {
 } from "@/components/ui/sidebar";
 import { useAuth } from "@/hooks/useAuth";
 import { sidebarLinks } from "@/utils/sidebarLinks";
-import { Link, useNavigate } from "react-router-dom";
-import axios from "@/config/axios";
-import { toast } from "sonner";
-import { useAccessToken } from "@/hooks/useAccessToken";
+import { Link } from "react-router-dom";
 import BrandLogo from "./BrandLogo";
+import AccountDropDown from "./AccountDropDown";
 
 // This is sample sidebar link data.
 // const data = {
@@ -158,27 +156,7 @@ import BrandLogo from "./BrandLogo";
 
 export default function AppSidebar() {
   const { user, setUser } = useAuth();
-  const { setToken } = useAccessToken();
-
-  const navigate = useNavigate();
   const navLinks = sidebarLinks(user?.role || "guest");
-
-  const handleLogout = async () => {
-    try {
-      const res = await axios.get("/auth/sign-out");
-
-      if (!res.data.success) {
-        return toast.error(res.data.message || "Logout failed");
-      }
-
-      setUser(null);
-      setToken(null);
-      toast.success("Logged out successfully");
-      navigate("/sign-in");
-    } catch (error) {
-      console.log(error);
-    }
-  };
 
   return (
     <Sidebar collapsible="icon">
@@ -269,85 +247,7 @@ export default function AppSidebar() {
         {user && (
           <SidebarMenu>
             <SidebarMenuItem>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <SidebarMenuButton
-                    size="lg"
-                    className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                  >
-                    <Avatar className="h-8 w-8 rounded-lg">
-                      <AvatarImage
-                        src={user?.profilePicture}
-                        alt={user?.fullName || "Guest"}
-                      />
-                      <AvatarFallback className="rounded-lg">
-                        {user?.fullName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="grid flex-1 text-left text-sm leading-tight">
-                      <span className="truncate font-semibold">
-                        {user?.fullName || "Guest"}
-                      </span>
-                      <span className="truncate text-xs">{user?.email}</span>
-                    </div>
-                    <ChevronsUpDown className="ml-auto size-4" />
-                  </SidebarMenuButton>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  className="w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
-                  side="bottom"
-                  align="end"
-                  sideOffset={4}
-                >
-                  <DropdownMenuLabel className="p-0 font-normal">
-                    <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                      <Avatar className="h-8 w-8 rounded-lg">
-                        <AvatarImage
-                          src={user?.profilePicture}
-                          alt={user?.fullName || "Guest"}
-                          referrerPolicy="no-referrer"
-                        />
-                        <AvatarFallback className="rounded-lg">
-                          {user?.fullName.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid flex-1 text-left text-sm leading-tight">
-                        <span className="truncate font-semibold">
-                          {user?.fullName || "Guest"}
-                        </span>
-                        <span className="truncate text-xs">{user?.email}</span>
-                      </div>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                      <Sparkles />
-                      Upgrade to Pro
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuGroup>
-                    <DropdownMenuItem>
-                      <BadgeCheck />
-                      Account
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <CreditCard />
-                      Billing
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Bell />
-                      Notifications
-                    </DropdownMenuItem>
-                  </DropdownMenuGroup>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleLogout}>
-                    <LogOut />
-                    Log out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <AccountDropDown user={user} setUser={setUser} variant="sidebar"/>
             </SidebarMenuItem>
           </SidebarMenu>
         )}
