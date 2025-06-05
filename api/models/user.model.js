@@ -29,8 +29,10 @@ const UserSchema = new Schema(
     status: {
       type: String,
       enum: ["active", "pending", "suspended", "rejected"],
-      default: "pending",
       index: true,
+    },
+    joinDate: {
+      type: Date,
     },
 
     // Student-only field
@@ -109,6 +111,7 @@ UserSchema.index({
   isDeleted: 1,
 });
 
+
 // Query middleware: exclude soft-deleted users
 UserSchema.pre(/^find/, function () {
   this.where({ isDeleted: false });
@@ -132,9 +135,12 @@ UserSchema.virtual("isInstructor").get(function () {
 // Optional: Clean up unused fields based on role (on save)
 UserSchema.pre("save", function (next) {
   if (this.role === "student") {
+    this.joiningDate = Date.now();
+    this.status = "active";
     this.bio = undefined;
     this.courses = undefined;
   } else if (this.role === "instructor") {
+    this.status = "pending";
     this.enrolledCourses = undefined;
     this.wallet = undefined;
     this.usedCoupons = undefined;

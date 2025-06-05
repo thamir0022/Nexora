@@ -20,12 +20,12 @@ const router = Router();
 // Course
 router.get("/", getAllCourses);
 router.post("/", verifyUser, addCourse);
-router.get("/:courseId", getCourseById);
+router.get("/:courseId", verifyUser, getCourseById);
 router.patch("/:courseId", verifyUser, updateCourse);
 router.delete("/:courseId", verifyUser, deleteCourse);
 
 // Course lesson
-router.get("/:courseId/lessons", getLessonsInCourse);
+router.get("/:courseId/lessons", verifyUser, getLessonsInCourse);
 router.post("/:courseId/lessons", verifyUser, createLesson);
 router.get("/:courseId/lessons/:lessonId", verifyUser, getLessonInCourse);
 router.patch("/:courseId/lessons/:lessonId", verifyUser, updateLessonInCourse);

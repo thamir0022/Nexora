@@ -1,20 +1,36 @@
 import { isValidObjectId } from "mongoose";
 import Course from "../models/course.model.js";
+import Lesson from "../models/lesson.model.js";
 import { AppError } from "../utils/apperror.js";
 import natural from "natural";
 import sw from "stopword";
+import { getSort, hasAccess } from "../utils/lib.js";
+import User from "../models/user.model.js";
 
 // GET: All courses
 export const getAllCourses = async (req, res, next) => {
   try {
-    const { query = "", page = 1, limit = 12 } = req.query;
+    const {
+      query = "",
+      page = 1,
+      limit = 12,
+      status = "published",
+      sortBy,
+    } = req.query;
 
-    const filter = query ? { $text: { $search: query } } : {};
+    if (!["draft", "published", "archived", "all"].includes(status))
+      throw new AppError("Invalid status filter", 400);
+
+    // Build filter
+    const filter = {
+      ...(status === "all" ? {} : { status }),
+      ...(query && { $text: { $search: query } }),
+    };
 
     const skip = (Number(page) - 1) * Number(limit);
 
     const courses = await Course.find(filter)
-      .sort({ updatedAt: -1 })
+      .sort(getSort(sortBy))
       .skip(skip)
       .limit(Number(limit))
       .select("-lessons -keywords -tags")
@@ -24,19 +40,12 @@ export const getAllCourses = async (req, res, next) => {
 
     if (!courses.length) throw new AppError("No courses found", 404);
 
-    const formattedCourses = courses.map((course) => ({
-      ...course,
-      category: Array.isArray(course.category)
-        ? course.category.map((cat) => cat.name)
-        : [course.category?.name].filter(Boolean),
-    }));
-
-    const totalCourses = formattedCourses.length;
+    const totalCourses = courses.length;
 
     res.status(200).json({
       success: true,
       message: "Courses fetched successfully",
-      courses: formattedCourses,
+      courses,
       totalCourses,
       pagination: {
         page: Number(page),
@@ -52,6 +61,7 @@ export const getAllCourses = async (req, res, next) => {
 // GET: Single course
 export const getCourseById = async (req, res, next) => {
   try {
+    const { _id, role } = req.user;
     const { courseId } = req.params;
 
     if (!courseId || !isValidObjectId(courseId)) {
@@ -59,34 +69,32 @@ export const getCourseById = async (req, res, next) => {
       throw new AppError(message, 400);
     }
 
+    const hasUserAccess = await hasAccess(courseId, _id, role);
+
     const course = await Course.findById(courseId)
       .populate([
         {
           path: "category",
-          select: "name -_id",
+          select: "name",
         },
         {
           path: "instructor",
-          select: "fullName email profilePicture -_id", // only fetch name and email
+          select: "fullName email profilePicture", // only fetch name and email
         },
         {
           path: "lessons",
-          select: "-_id",
+          select: hasUserAccess ? "" : "title description thumbnailImage",
         },
       ])
       .lean();
 
     if (!course) throw new AppError("Course not found!", 404);
 
-    const formattedData = {
-      ...course,
-      category: course.category.map((cat) => cat.name),
-    };
-
     res.status(200).json({
       success: true,
       message: "Course fetched successfully",
-      course: formattedData,
+      course,
+      hasAccess: hasUserAccess,
     });
   } catch (error) {
     next(error);
@@ -94,36 +102,14 @@ export const getCourseById = async (req, res, next) => {
 };
 
 // POST: Add new course
-const REQFIELDS = [
-  "title",
-  "description",
-  "price",
-  "category",
-  "features",
-  "thumbnailImage",
-];
+const REQFIELDS = ["title", "description", "price", "category", "hashtags"];
 
 export const addCourse = async (req, res, next) => {
   try {
-    const {
-      title,
-      description,
-      price,
-      category,
-      features,
-      thumbnailImage,
-      tags = [
-        "react",
-        "javascript",
-        "developing",
-        "web",
-        "programming",
-        "frontend",
-      ],
-    } = req.body || {};
+    const { title, description, price, category, hashtags } = req.body || {};
 
     // Check role
-    if (!["instructor", "admin"].includes(req.user.role))
+    if (req.user.role != "instructor")
       throw new AppError("Only instructors can create a course.", 403);
 
     const missingFields = REQFIELDS.filter((field) => !req.body[field]);
@@ -140,9 +126,8 @@ export const addCourse = async (req, res, next) => {
       !description?.trim() ||
       !Array.isArray(category) ||
       !category.length ||
-      !Array.isArray(features) ||
-      !features.length ||
-      !thumbnailImage?.trim()
+      !Array.isArray(hashtags) ||
+      !hashtags.length
     )
       throw new AppError(
         "All required fields must be provided and non-empty.",
@@ -153,7 +138,7 @@ export const addCourse = async (req, res, next) => {
     const stemmer = natural.PorterStemmer;
 
     // Combine course content
-    const courseText = `${title} ${description} ${tags}`;
+    const courseText = `${title} ${description} ${hashtags} ${req.user.fullName}`;
 
     // 1. Tokenize
     const tokens = tokenizer.tokenize(courseText.toLowerCase());
@@ -172,11 +157,13 @@ export const addCourse = async (req, res, next) => {
       description,
       price,
       category,
-      tags,
-      features,
-      thumbnailImage,
+      hashtags,
       instructor: req.user._id,
       keywords,
+    });
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $push: { courses: newCourse._id },
     });
 
     res.status(201).json({
@@ -191,6 +178,7 @@ export const addCourse = async (req, res, next) => {
 
 // PUT: Update course
 export const updateCourse = async (req, res, next) => {
+  console.log(req.body);
   try {
     const { courseId } = req.params;
 
@@ -209,13 +197,15 @@ export const updateCourse = async (req, res, next) => {
       "rating",
       "enrolledCount",
       "keywords",
-      "tags"
+      "tags",
     ];
 
     const updates = {};
     for (let key of allowedFields) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
+
+    console.log(updates);
 
     if (Object.keys(updates).length === 0)
       throw new AppError("No valid fields provided for update.", 400);
@@ -227,7 +217,7 @@ export const updateCourse = async (req, res, next) => {
     ).lean();
 
     if (!updatedCourse) throw new AppError("Course not found for update!", 404);
-    
+
     res.status(200).json({
       success: true,
       message: "Course updated successfully",
@@ -242,7 +232,7 @@ export const updateCourse = async (req, res, next) => {
 export const deleteCourse = async (req, res, next) => {
   // Check role
   if (!["instructor", "admin"].includes(req.user.role))
-    throw new AppError("Only instructors can create a course.", 403);
+    throw new AppError("Only instructors can delete a course.", 403);
 
   try {
     const { courseId } = req.params;
@@ -254,8 +244,14 @@ export const deleteCourse = async (req, res, next) => {
 
     const deletedCourse = await Course.findByIdAndDelete(courseId).lean();
 
+    await User.findByIdAndUpdate(req.user._id, {
+      $pull: { courses: courseId },
+    });
+
     if (!deletedCourse)
       throw new AppError("Course not found for deletion!", 404);
+
+    await Lesson.deleteMany({ _id: { $in: deletedCourse.lessons } });
 
     res.status(200).json({
       success: true,

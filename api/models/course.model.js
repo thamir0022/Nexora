@@ -25,13 +25,16 @@ const courseSchema = new Schema(
     },
     features: {
       type: [String],
-      required: true,
-      validate: (v) => Array.isArray(v) && v.length > 0,
     },
     instructor: {
       type: Types.ObjectId,
       ref: "User",
       required: true,
+    },
+    status: {
+      type: String,
+      enum: ["draft", "published", "archived"],
+      default: "published",
     },
     enrolledCount: {
       type: Number,
@@ -53,18 +56,17 @@ const courseSchema = new Schema(
       {
         type: Types.ObjectId,
         ref: "Lesson",
+        default: [],
         required: true,
       },
     ],
     thumbnailImage: {
       type: String,
-      required: true,
       trim: true,
     },
-    tags: {
+    hashtags: {
       type: [String],
       required: true,
-      validate: (v) => Array.isArray(v) && v.length > 0,
     },
     keywords: {
       type: [String],

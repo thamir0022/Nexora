@@ -3,14 +3,20 @@ import {
   addInstructorQualification,
   approveInstructor,
   getAllInstructorRequests,
+  getInstructorCourses,
+  getInstructorQualifications,
   getInstructorRequest,
   rejectInstructor,
+  updateInstructorQualification,
 } from "../controllers/instructor.controller.js";
 import { verifyUser } from "../utils/verifyUser.js";
 
 const router = Router();
 
+router.get("/courses", verifyUser, getInstructorCourses);
 router.post("/qualifications", addInstructorQualification);
+router.get("/qualifications/:userId", verifyUser, getInstructorQualifications);
+router.patch("/qualifications/:userId", verifyUser, updateInstructorQualification);
 router.get("/requests", verifyUser, getAllInstructorRequests);
 router.get("/requests/:userId", verifyUser, getInstructorRequest);
 router.patch("/:userId/approve", verifyUser, approveInstructor);

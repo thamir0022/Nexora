@@ -30,7 +30,7 @@ import { z } from "zod";
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
 import { ScrollArea } from "./ui/scroll-area";
-import { Loader, PlusCircle, Trash2 } from "lucide-react";
+import { Eye, Loader, PlusCircle, Trash2, Upload } from "lucide-react";
 import { Textarea } from "./ui/textarea";
 import {
   Select,
@@ -46,7 +46,9 @@ import { SlidingNumber } from "./ui/sliding-number";
 import { useAuth } from "@/hooks/useAuth";
 import { useAccessToken } from "@/hooks/useAccessToken";
 import { Link, useNavigate } from "react-router-dom";
-import { uploadToCloudinary } from "@/utils/cloudinaryUploader";
+import CloudinaryUploadWidget from "./CloudinaryUploadWidget";
+import { Card } from "./ui/card";
+import { Badge } from "./ui/badge";
 
 const signUpSchema = z
   .object({
@@ -362,7 +364,7 @@ function Step2() {
 }
 
 function Step3() {
-  const { handleChange, formData, setWizardStep, onOpenChange } = useWizard();
+  const { handleChange, formData, setWizardStep } = useWizard();
   const [loading, setLoading] = useState(false);
   const { setUser } = useAuth();
   const { setToken } = useAccessToken();
@@ -379,47 +381,67 @@ function Step3() {
     },
   });
 
-  const onSubmit = async (data) => {
-    // eslint-disable-next-line no-unused-vars
-    const { confirmPassword, ...rest } = data;
-    const { fullName, password, mobile } = rest;
+  const onSubmit = async (formValues) => {
+    // Validate required fields first
+    const { confirmPassword, ...rest } = formValues;
+    const { fullName, email, mobile, password, role } = rest;
+    
+    if (!fullName || !email || !mobile || !password) {
+      return toast.error("Please fill in all required fields");
+    }
+
+    if (password !== confirmPassword) {
+      return toast.error("Passwords do not match");
+    }
+
     setLoading(true);
-
-    await handleChange("fullName", fullName);
-    await handleChange("password", password);
-    await handleChange("mobile", mobile);
-
+    
     try {
-      const { fullName, email, mobile, role, password } = formData;
+      // Create the submission data with the latest form values
+      const submissionData = {
+        ...formData,
+        fullName,
+        email,
+        mobile,
+        password,
+        role: role || 'student'
+      };
 
-      if (!fullName || !email || !mobile || !role || !password) {
-        return toast.error("All fields are required");
+      // Submit the registration
+      const res = await axios.post("/auth/register", submissionData);
+
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Registration failed');
       }
 
-      const res = await axios.post("/auth/register", formData);
-
-      if (!res.data.success) {
-        return toast.error(res.data.message);
-      }
-
+      // Handle student flow
       if (res.data.user.role === "student") {
         form.reset();
         setUser(res.data.user);
         setToken(res.data.accessToken);
-        return setWizardStep(5);
+        setWizardStep(5);
+        return;
       }
 
+      // Handle instructor flow
       await handleChange("userId", res.data.user._id);
-      toast.success(res.data.message);
+      toast.success(res.data.message || "Registration successful!");
       setWizardStep(4);
     } catch (error) {
-      const message = error.response.data.message || "Something went wrong";
-      toast.error(message);
-      console.log(error);
+      console.error("Registration error:", error);
+      const errorMessage = error.response?.data?.message || error.message || "Registration failed";
+      toast.error(errorMessage);
     } finally {
       setLoading(false);
     }
   };
+
+  // Set default role if not set
+  useEffect(() => {
+    if (formData.role && !form.getValues('role')) {
+      form.setValue('role', formData.role);
+    }
+  }, [formData.role, form]);
 
   return (
     <div className="animate-in space-y-2">
@@ -520,246 +542,244 @@ function Step3() {
 }
 
 function Step4() {
-  // Store certificates separately for Cloudinary upload
-  const [certificates, setCertificates] = useState({});
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false)
+  const [uploadingStates, setUploadingStates] = useState({})
+  const [previewDialog, setPreviewDialog] = useState({ open: false, url: "" })
+
   const {
     setWizardStep,
     formData: { fullName, userId },
-  } = useWizard();
+  } = useWizard()
 
-  const axios = useAxiosPrivate();
+  const axios = useAxiosPrivate()
 
-  // Initialize form with React Hook Form and Zod validation
   const form = useForm({
     resolver: zodResolver(qualificationSchema),
     defaultValues: {
       experienceSummary: "",
-      qualifications: [{ degree: "" }],
+      qualifications: [{ degree: "", certificateURL: "" }],
       socialLinks: [{ platform: "", profileUrl: "" }],
       portfolioLink: "",
     },
-  });
+  })
 
-  // Setup field arrays for dynamic fields
+  const { control, setValue, watch, handleSubmit, reset, getValues } = form
+
   const qualificationsArray = useFieldArray({
-    control: form.control,
+    control,
     name: "qualifications",
-  });
+  })
 
   const socialLinksArray = useFieldArray({
-    control: form.control,
+    control,
     name: "socialLinks",
-  });
+  })
 
-  // Handle file upload
-  const handleFileChange = (event, index) => {
-    const file = event.target.files[0];
-    if (file) {
-      // Store the file for Cloudinary upload
-      setCertificates((prev) => ({
-        ...prev,
-        [index]: {
-          file,
-          name: file.name,
-          size: (file.size / 1024).toFixed(2) + " KB",
-        },
-      }));
+  // Watch all form values to ensure we have the latest data
+  const watchedValues = watch()
+
+  const handleUploadSuccess = (url, index) => {
+    if (!url) {
+      toast.error("Upload failed!")
+      setUploadingStates((prev) => ({ ...prev, [index]: false }))
+      return
     }
-  };
 
-  // Remove uploaded file
-  const removeFile = (index) => {
-    setCertificates((prev) => {
-      const newCertificates = { ...prev };
-      delete newCertificates[index];
-      return newCertificates;
-    });
-  };
+    // Set the certificate URL and ensure form state is updated
+    setValue(`qualifications.${index}.certificateURL`, url, {
+      shouldValidate: true,
+      shouldDirty: true,
+    })
 
-  // Handle form submission
-  const handleSubmit = async (data) => {
-    setLoading(true);
+    setUploadingStates((prev) => ({ ...prev, [index]: false }))
+    toast.success("Certificate uploaded successfully!")
+  }
+
+  const handleUploadError = (index) => {
+    setUploadingStates((prev) => ({ ...prev, [index]: false }))
+    toast.error("Upload failed!")
+  }
+
+  const onSubmit = async () => {
+    setLoading(true)
     try {
-      const uploadedCertificates = await Promise.all(
-        data.qualifications.map(async (qualification, index) => {
-          const cert = certificates[index];
-          if (!cert)
-            throw new Error(`Missing certificate file for index ${index}`);
+      // Get the latest form values to ensure certificate URLs are included
+      const currentValues = getValues()
+      const payload = { ...currentValues, userId }
 
-          const url = await uploadToCloudinary(
-            cert.file,
-            "instructorCertificate",
-            {
-              instructorId: userId, // or data._id if needed
-              certIndex: index,
-            }
-          );
+      console.log("Submitting payload:", payload) // Debug log
 
-          return {
-            degree: qualification.degree,
-            certificateURL: url,
-          };
-        })
-      );
-
-      const cleanData = {
-        ...data,
-        userId,
-        qualifications: uploadedCertificates,
-      };
-
-      const res = await axios.post("/instructors/qualifications", cleanData);
+      const res = await axios.post("/instructors/qualifications", payload)
 
       if (!res.data.success) {
-        return toast.error(res.data.message || "Something went wrong");
+        toast.error(res.data.message || "Submission failed")
+        return
       }
 
-      form.reset();
-      setCertificates({});
-      setWizardStep(6);
+      toast.success("Qualifications submitted successfully!")
+      reset()
+      setWizardStep(6)
     } catch (error) {
-      console.error("Form submission failed:", error);
+      console.error("Submission error:", error)
+      toast.error("Something went wrong")
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
-  };
+  }
 
-  // Handle dialog close
-  const handleClose = () => {
-    form.reset();
-    setCertificates({});
-  };
+  const openPreview = (url) => {
+    setPreviewDialog({ open: true, url })
+  }
 
   return (
-    <div>
-      <DialogHeader>
-        <DialogTitle className="text-center text-xl">
-          Hey {fullName}👋, Let&apos;s Talk About Your Journey!
-        </DialogTitle>
-        <DialogDescription className="text-center">
-          Share your experience and qualifications so we can get you verified
-          and ready to inspire learners.
-        </DialogDescription>
-      </DialogHeader>
-      <ScrollArea className="h-[60vh] pr-4">
-        <div>
+    <>
+      <div className="space-y-6">
+        <DialogHeader>
+          <DialogTitle className="text-center text-2xl font-semibold">
+            Hey {fullName} 👋, Let&apos;s Talk About Your Journey!
+          </DialogTitle>
+          <DialogDescription className="text-center text-muted-foreground">
+            Share your experience and qualifications so we can get you verified and ready to inspire learners.
+          </DialogDescription>
+        </DialogHeader>
+
+        <ScrollArea className="h-[65vh] pr-4">
           <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(handleSubmit)}
-              className="space-y-5 px-2"
-            >
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6 px-1">
               {/* Experience Summary */}
               <FormField
-                control={form.control}
+                control={control}
                 name="experienceSummary"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Experience Summary</FormLabel>
+                    <FormLabel className="text-base font-medium">Experience Summary</FormLabel>
                     <FormControl>
                       <Textarea
-                        placeholder="Summarize your teaching or industry experience"
-                        className="min-h-20 max-h-40"
+                        placeholder="Tell us about your teaching experience, industry background, and what makes you passionate about education..."
+                        className="min-h-24 resize-none"
                         {...field}
                       />
                     </FormControl>
+                    <div className="text-xs text-muted-foreground">
+                      {field.value?.length || 0}/500 characters (minimum 50)
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              {/* Qualifications - Simplified */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <FormLabel>Qualifications</FormLabel>
+              {/* Qualifications */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <FormLabel className="text-base font-medium">Qualifications & Certificates</FormLabel>
                   {qualificationsArray.fields.length < 5 && (
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => qualificationsArray.append({ degree: "" })}
-                      className="h-8"
+                      onClick={() =>
+                        qualificationsArray.append({
+                          degree: "",
+                          certificateURL: "",
+                        })
+                      }
                     >
-                      <PlusCircle className="mr-2 h-4 w-4" />
-                      Add Degree
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Add Qualification
                     </Button>
                   )}
                 </div>
 
-                {qualificationsArray.fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-2">
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`qualifications.${index}.degree`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                placeholder="e.g., M.Sc. in Physics"
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                <div className="space-y-4">
+                  {qualificationsArray.fields.map((field, index) => (
+                    <Card key={field.id} className="p-4">
+                      <div className="space-y-4">
+                        <div className="flex gap-3">
+                          <div className="flex-1">
+                            <FormField
+                              control={control}
+                              name={`qualifications.${index}.degree`}
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormControl>
+                                    <Input
+                                      placeholder="e.g., M.Sc. in Computer Science, B.Ed. in Mathematics"
+                                      {...field}
+                                    />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
 
-                    <div className="flex items-center gap-2">
-                      <div className="flex-shrink-0">
-                        <Input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="hidden"
-                          id={`certificate-file-${index}`}
-                          onChange={(e) => handleFileChange(e, index)}
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            document
-                              .getElementById(`certificate-file-${index}`)
-                              .click()
-                          }
-                        >
-                          {certificates[index] ? "Change" : "Upload"}
-                        </Button>
-                      </div>
-
-                      {certificates[index] && (
-                        <div className="text-xs text-muted-foreground">
-                          {certificates[index].name.length > 15
-                            ? certificates[index].name.substring(0, 15) + "..."
-                            : certificates[index].name}
+                          {qualificationsArray.fields.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => qualificationsArray.remove(index)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
-                      )}
 
-                      {qualificationsArray.fields.length > 1 && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => {
-                            qualificationsArray.remove(index);
-                            removeFile(index);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                        {/* Certificate Upload and Preview */}
+                        <div className="flex items-start gap-4">
+                          <CloudinaryUploadWidget
+                            onSuccess={(url) => handleUploadSuccess(url, index)}
+                            onError={handleUploadError}
+                            folder={`instructors/${userId}/qualifications`}
+                            className="flex-shrink-0"
+                            variant="button"
+                          >
+                            {uploadingStates[index] ? (
+                              <Loader className="h-4 w-4 mr-2 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4 mr-2" />
+                            )}
+                            {uploadingStates[index] ? "Uploading..." : "Upload Certificate"}
+                          </CloudinaryUploadWidget>
+
+                          {/* Modern Certificate Preview */}
+                          {watchedValues.qualifications?.[index]?.certificateURL && (
+                            <div className="flex items-center gap-3">
+                              <div className="relative group">
+                                <img
+                                  src={watchedValues.qualifications[index].certificateURL || "/placeholder.svg"}
+                                  alt="Certificate preview"
+                                  className="w-16 h-16 object-cover rounded-lg border-2 border-border shadow-sm transition-all group-hover:shadow-md"
+                                />
+                                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-all flex items-center justify-center">
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-white hover:bg-white/20"
+                                    onClick={() => openPreview(watchedValues.qualifications[index].certificateURL)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </div>
+                              <Badge variant="secondary" className="text-xs">
+                                Certificate uploaded
+                              </Badge>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
 
-              {/* Social Links - With Dropdown */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <FormLabel>Social Links</FormLabel>
+              {/* Social Links */}
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <FormLabel className="text-base font-medium">Social Links (Optional)</FormLabel>
                   {socialLinksArray.fields.length < 5 && (
                     <Button
                       type="button"
@@ -771,132 +791,127 @@ function Step4() {
                           profileUrl: "",
                         })
                       }
-                      className="h-8"
                     >
-                      <PlusCircle className="mr-2 h-4 w-4" />
+                      <PlusCircle className="h-4 w-4 mr-2" />
                       Add Link
                     </Button>
                   )}
                 </div>
 
-                {socialLinksArray.fields.map((field, index) => (
-                  <div key={field.id} className="flex items-start gap-2">
-                    <div className="w-1/3">
-                      <FormField
-                        control={form.control}
-                        name={`socialLinks.${index}.platform`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <Select
-                              onValueChange={field.onChange}
-                              defaultValue={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select platform" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <ScrollArea className="max-h-40">
-                                  {socialPlatforms.map((platform) => (
-                                    <SelectItem key={platform} value={platform}>
-                                      {platform}
-                                    </SelectItem>
-                                  ))}
-                                </ScrollArea>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                <div className="space-y-3">
+                  {socialLinksArray.fields.map((field, index) => (
+                    <Card key={field.id} className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-40">
+                          <FormField
+                            control={control}
+                            name={`socialLinks.${index}.platform`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                  <FormControl>
+                                    <SelectTrigger>
+                                      <SelectValue placeholder="Platform" />
+                                    </SelectTrigger>
+                                  </FormControl>
+                                  <SelectContent>
+                                    <ScrollArea className="max-h-40">
+                                      {socialPlatforms.map((platform) => (
+                                        <SelectItem key={platform} value={platform}>
+                                          {platform}
+                                        </SelectItem>
+                                      ))}
+                                    </ScrollArea>
+                                  </SelectContent>
+                                </Select>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    <div className="flex-1">
-                      <FormField
-                        control={form.control}
-                        name={`socialLinks.${index}.profileUrl`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <Input
-                                type="url"
-                                placeholder="https://..."
-                                {...field}
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
+                        <div className="flex-1">
+                          <FormField
+                            control={control}
+                            name={`socialLinks.${index}.profileUrl`}
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormControl>
+                                  <Input type="url" placeholder="https://..." {...field} />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                        </div>
 
-                    {socialLinksArray.fields.length > 1 && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => socialLinksArray.remove(index)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                        {socialLinksArray.fields.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => socialLinksArray.remove(index)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </Card>
+                  ))}
+                </div>
               </div>
 
               {/* Portfolio Link */}
               <FormField
-                control={form.control}
+                control={control}
                 name="portfolioLink"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Portfolio (Optional)</FormLabel>
+                    <FormLabel className="text-base font-medium">Portfolio Website (Optional)</FormLabel>
                     <FormControl>
-                      <Input
-                        type="url"
-                        placeholder="e.g., https://yourportfolio.com"
-                        {...field}
-                      />
+                      <Input type="url" placeholder="e.g., https://yourportfolio.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
-              <DialogFooter className="flex justify-between!">
-                <Button
-                  className="self-start"
-                  type="button"
-                  variant="outline"
-                  onClick={() => setWizardStep((prev) => prev - 1)}
-                >
-                  Back
-                </Button>
-                <div className="flex gap-3">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => handleClose()}
-                  >
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={loading}>
-                    {loading ? (
-                      <Loader size={20} className="animate-spin" />
-                    ) : (
-                      "Submit"
-                    )}
-                  </Button>
-                </div>
-              </DialogFooter>
             </form>
           </Form>
-        </div>
-      </ScrollArea>
-    </div>
-  );
+        </ScrollArea>
+
+        <DialogFooter className="flex justify-between pt-4 border-t">
+          <Button variant="outline" type="button" onClick={() => setWizardStep((prev) => prev - 1)}>
+            Back
+          </Button>
+          <div className="flex gap-3">
+            <Button type="button" variant="outline" onClick={() => reset()}>
+              Reset
+            </Button>
+            <Button onClick={handleSubmit(onSubmit)} disabled={loading} className="min-w-24">
+              {loading ? <Loader className="animate-spin h-4 w-4" /> : "Submit"}
+            </Button>
+          </div>
+        </DialogFooter>
+      </div>
+
+      {/* Certificate Preview Dialog */}
+      <Dialog open={previewDialog.open} onOpenChange={(open) => setPreviewDialog({ open, url: "" })}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Certificate Preview</DialogTitle>
+          </DialogHeader>
+          <div className="flex justify-center">
+            <img
+              src={previewDialog.url || "/placeholder.svg"}
+              alt="Certificate preview"
+              className="max-w-full max-h-[70vh] object-contain rounded-lg"
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
 }
 
 function InstructorWelcomeDialog() {

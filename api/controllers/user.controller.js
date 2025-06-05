@@ -51,7 +51,7 @@ export const updateUser = async (req, res, next) => {
 
     // Authorization check
     const isAdmin = requester.role === "admin";
-    const isSelf = requester._id === targetUserId;
+    const isSelf = requester._id.toString() === targetUserId;
 
     if (!isSelf && !isAdmin) {
       throw new AppError("You are not allowed to access this API", 403);

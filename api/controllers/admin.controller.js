@@ -10,8 +10,10 @@ export const getAllUsers = async (req, res, next) => {
       throw new AppError("You should be a admin for accessing this API", 403);
 
     const filter = {
-      ...(status ? { status } : role ? { role } : {}),
-    };
+      ...(status ? { status } : { status: { $ne: "pending" } }),
+      ...(role && { role }),
+    };    
+    
 
     const order = sort === "asc" ? 1 : -1;
 
@@ -35,7 +37,7 @@ export const getAllUsers = async (req, res, next) => {
     if (!users) throw new AppError("No users found", 404);
 
     res.status(200).json({
-      status: "success",
+      success: true,
       message: "Users fetched successfully",
       users,
     });

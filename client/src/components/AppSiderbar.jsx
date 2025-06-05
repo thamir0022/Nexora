@@ -1,29 +1,13 @@
 import * as React from "react";
 import {
-  BadgeCheck,
-  Bell,
   ChevronRight,
-  ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
 } from "lucide-react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import {
   Sidebar,
@@ -169,7 +153,7 @@ export default function AppSidebar() {
             >
               <div className="flex flex-col">
                 <BrandLogo size={10} />
-                <span className="text-center text-sm text-muted-foreground">
+                <span className="text-center text-sm text-muted-foreground capitalize">
                   {user?.role || "Guest"}
                 </span>
               </div>
@@ -193,7 +177,7 @@ export default function AppSidebar() {
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuButton tooltip={item.title}>
-                        {item.icon && <item.icon />}
+                        {item.icon && <item.icon className="size-6!" />}
                         <span>{item.title}</span>
                         <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                       </SidebarMenuButton>
@@ -215,9 +199,9 @@ export default function AppSidebar() {
                 </Collapsible>
               ) : (
                 <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild tooltip={item.title}>
                     <Link to={item.url}>
-                      <item.icon />
+                      <item.icon className="size-6!"/>
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -233,7 +217,7 @@ export default function AppSidebar() {
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton asChild>
                   <a href={item.url}>
-                    <item.icon />
+                    <item.icon className="size-6!"/>
                     <span>{item.title}</span>
                   </a>
                 </SidebarMenuButton>
@@ -247,7 +231,7 @@ export default function AppSidebar() {
         {user && (
           <SidebarMenu>
             <SidebarMenuItem>
-              <AccountDropDown user={user} setUser={setUser} variant="sidebar"/>
+              <AccountDropDown user={user} setUser={setUser} variant="sidebar" />
             </SidebarMenuItem>
           </SidebarMenu>
         )}

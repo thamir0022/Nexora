@@ -7,9 +7,9 @@ const paymentSchema = new Schema(
       ref: 'User',
       required: true,
     },
-    orderId: {
+    purchaseId: {
       type: Schema.Types.ObjectId,
-      ref: 'Order',
+      ref: 'Purchase',
       required: true,
     },
     amount: {
@@ -23,7 +23,7 @@ const paymentSchema = new Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['credit_card', 'paypal', 'upi', 'net_banking', 'cash'], // customize as needed
+      enum: ['credit_card', 'debit_card', 'paypal', 'upi', 'net_banking'],
       required: true,
     },
     paymentStatus: {
@@ -38,7 +38,7 @@ const paymentSchema = new Schema(
     },
   },
   {
-    timestamps: true, // auto-manages createdAt and updatedAt
+    timestamps: true,
   }
 );
 

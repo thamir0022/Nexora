@@ -1,58 +1,78 @@
+import { lessonFields } from "../constants/userFields.js";
 import Course from "../models/course.model.js";
 import Lesson from "../models/lesson.model.js";
+import User from "../models/user.model.js";
 import { AppError } from "../utils/apperror.js";
+import { hasAccess } from "../utils/lib.js";
 
 export const createLesson = async (req, res, next) => {
+  const { role: reqUserRole, _id: reqUserId } = req.user;
+
+  if (!req.body || typeof req.body !== "object")
+    throw new AppError("Invalid or missing request body", 400);
+
   try {
     const { courseId } = req.params;
-    const {
-      title, description, duration, thumbnailImage, videoUrl, noteUrls = [],
-    } = req.body;
 
-    if (!["instructor", "admin"].includes(req.user.role)) {
+    // Authorization
+    if (reqUserRole !== "instructor")
       throw new AppError("Only instructors can create lessons", 403);
-    }
 
+    // Check if course exists
     const course = await Course.findById(courseId);
+
     if (!course) throw new AppError("Course not found", 404);
 
-    if (!title || !description || !duration || !thumbnailImage || !videoUrl) {
-      throw new AppError("Missing required lesson fields", 400);
+
+    if (String(reqUserId) !== String(course.instructor))
+      throw new AppError(
+        "Only the course instructor can add lessons to this course.",
+        403
+      );
+
+    let lessonData = {};
+
+    for (let key of lessonFields) {
+      if (req.body[key] != undefined) lessonData[key] = req.body[key];
     }
 
-    const lesson = await Lesson.create({
-      title,
-      description,
-      duration,
-      thumbnailImage,
-      videoUrl,
-      noteUrls,
-    });
+    const newLesson = await Lesson.create(lessonData);
 
-    course.lessons.push(lesson._id);
+    course.lessons.push(newLesson._id);
+
     await course.save();
+
 
     res.status(201).json({
       success: true,
       message: "Lesson created and added to course",
-      data: lesson,
+      lesson: newLesson,
     });
   } catch (error) {
     next(error);
   }
 };
 
-
 export const getLessonInCourse = async (req, res, next) => {
   try {
+    const { _id, role } = req.user;
     const { courseId, lessonId } = req.params;
 
+    // Check if course exists
     const course = await Course.findById(courseId);
+
     if (!course) throw new AppError("Course not found", 404);
 
-    if (!course.lessons.includes(lessonId)) {
-      throw new AppError("Lesson not part of this course", 400);
+    if (!hasAccess(courseId, _id, role)) {
+      throw new AppError(
+        "You are not enrolled in this course. Please purchase or enroll to access the content.",
+        403,
+        "not-purchased"
+      );
     }
+
+    if (!course.lessons.includes(lessonId))
+      throw new AppError("Lesson not part of this course", 400);
 
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new AppError("Lesson not found", 404);
@@ -60,37 +80,35 @@ export const getLessonInCourse = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Lesson fetched successfully",
-      data: lesson,
+      lesson,
     });
   } catch (error) {
     next(error);
   }
 };
 
-
 export const getLessonsInCourse = async (req, res, next) => {
   try {
+    const { _id, role } = req.user;
     const { courseId } = req.params;
 
-    const course = await Course.findById(courseId).exec();
+    const course = await Course.findById(courseId).lean();
     if (!course) throw new AppError("Course not found", 404);
 
-    if (!Array.isArray(course.lessons) || course.lessons.length === 0) {
-      return res.status(200).json({
-        success: true,
-        message: "No lessons found in this course",
-        count: 0,
-        data: [],
-      });
-    }
+    if (!hasAccess(courseId, _id, role))
+      throw new AppError("You are not allowed to get this course data", 403);
 
-    const lessons = await Lesson.find({ _id: { $in: course.lessons } }).exec();
+    if (course.lessons.length === 0)
+      throw new AppError("No lessons found in this course", 404);
+
+    const lessons = await Lesson.find({ _id: { $in: course.lessons } }).lean();
+
 
     res.status(200).json({
       success: true,
       message: "Lessons fetched successfully",
       count: lessons.length,
-      data: lessons,
+      lessons,
     });
   } catch (error) {
     next(error);
@@ -100,21 +118,21 @@ export const getLessonsInCourse = async (req, res, next) => {
 export const deleteLessonInCourse = async (req, res, next) => {
   try {
     const { courseId, lessonId } = req.params;
+    const { role, _id } = req.user;
 
-    if (req.user.role !== "instructor") {
+    if (role !== "instructor")
       throw new AppError("Only instructors can delete lessons", 403);
-    }
 
     const course = await Course.findById(courseId);
     if (!course) throw new AppError("Course not found", 404);
+
+    if (course.instructor.toString() !== _id) throw new AppError("You are not allowed to delete this lesson", 403);
 
     if (!course.lessons.includes(lessonId)) {
       throw new AppError("Lesson not part of this course", 400);
     }
 
-    course.lessons = course.lessons.filter(
-      id => id.toString() !== lessonId
-    );
+    course.lessons = course.lessons.filter((id) => id.toString() !== lessonId);
     await course.save();
 
     const deletedLesson = await Lesson.findByIdAndDelete(lessonId);
@@ -129,15 +147,13 @@ export const deleteLessonInCourse = async (req, res, next) => {
   }
 };
 
-
-
 export const updateLessonInCourse = async (req, res, next) => {
   try {
     const { courseId, lessonId } = req.params;
+    const { role, _id } = req.user;
 
-    if (req.user.role !== "instructor") {
+    if (role !== "instructor")
       throw new AppError("Only instructors can update lessons", 403);
-    }
 
     const course = await Course.findById(courseId);
     if (!course) throw new AppError("Course not found", 404);
@@ -147,7 +163,12 @@ export const updateLessonInCourse = async (req, res, next) => {
     }
 
     const allowedFields = [
-      "title", "description", "duration", "thumbnailImage", "videoUrl", "noteUrls",
+      "title",
+      "description",
+      "duration",
+      "thumbnailImage",
+      "videoUrl",
+      "noteUrls",
     ];
 
     const updates = {};
@@ -167,7 +188,7 @@ export const updateLessonInCourse = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Lesson updated successfully",
-      data: updatedLesson,
+      updatedLesson,
     });
   } catch (error) {
     next(error);

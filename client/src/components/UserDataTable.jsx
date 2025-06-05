@@ -485,7 +485,7 @@ export default function UsersTable() {
                           alt={user.fullName}
                         />
                         <AvatarFallback>
-                          {user.fullName.charAt(0).toUpperCase()}
+                          {user?.fullName?.charAt(0)?.toUpperCase() || "U"}
                         </AvatarFallback>
                       </Avatar>
                       {user.fullName}

@@ -11,7 +11,7 @@ export const getAllCategories = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Categories fetched successfully",
-      data: categories,
+      categories,
     });
   } catch (error) {
     next(error);
@@ -21,9 +21,8 @@ export const getAllCategories = async (req, res, next) => {
 // CREATE CATEGORY
 export const createCategory = async (req, res, next) => {
   try {
-    if (req.user?.role !== "admin") {
+    if (req.user?.role !== "admin")
       throw new AppError("Only admins can create categories", 403);
-    }
 
     const { name, description, status } = req.body;
 
@@ -63,7 +62,9 @@ export const updateCategory = async (req, res, next) => {
       {
         ...(name && { name: name.trim() }),
         ...(description && { description: description.trim() }),
-        ...(["active", "disabled", "rejected", "draft"].includes(status) && { status }),
+        ...(["active", "disabled", "rejected", "draft"].includes(status) && {
+          status,
+        }),
       },
       { new: true, runValidators: true }
     );

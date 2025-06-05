@@ -1,10 +1,8 @@
-import Header from "@/components/Header";
 import HeroCarousel from "@/components/HeroCarousel";
+import ThumbnailSkeleton from "@/components/skeltons/Thumbnail";
 import Thumbnail from "@/components/Thumbnail";
-import { AnimatedGroup } from "@/components/ui/animated-group";
 import { useAuth } from "@/hooks/useAuth";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
-import { Loader } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,15 +16,21 @@ const HomePage = () => {
     const fetchCourses = async () => {
       setloading(true);
       try {
-        const res = await axios.get("/courses");
+        const { data } = await axios.get("/courses");
 
-        if (res.status !== 200) {
-          console.log(res.data);
+        if (!data.success) {
+          console.error('Failed to fetch courses:', data.message);
+          toast.error('Failed to load courses. Please try again later.');
+          return;
         }
 
-        setCourses(res.data.courses);
+        // Ensure we only show published courses
+        const publishedCourses = data.courses.filter(course => course.status === 'published');
+        setCourses(publishedCourses);
       } catch (error) {
-        console.log(error);
+        console.error('Error fetching courses:', error);
+        const errorMessage = error.response?.data?.message || 'Failed to load courses';
+        toast.error(errorMessage);
       } finally {
         setloading(false);
       }
@@ -35,76 +39,81 @@ const HomePage = () => {
   }, [axios]);
 
   const handleAddToCart = async (courseId) => {
-    console.log(courseId);
-    try {
-      const res = await axios.post(`/users/${user._id}/cart`, { courseId });
+    if (!user?._id) {
+      toast.error('Please sign in to add courses to your cart');
+      return;
+    }
 
-      if (!res.data.success) {
-        const errorMessage =
-          res.data?.message || "Failed to add course to cart";
+    try {
+      const { data } = await axios.post(`/users/${user._id}/cart`, { courseId });
+
+      if (!data.success) {
+        const errorMessage = data?.message || "Failed to add course to cart";
         toast.error(errorMessage);
         return;
       }
 
-      const message = res.data.message || "Course added to cart successfully";
-      toast.success(message);
+      toast.success(data.message || "Course added to cart successfully");
     } catch (error) {
-      const errorMessage = error.response?.data?.message || "An error occurred";
-      toast.error(errorMessage);
-      console.log(error);
+      console.error('Add to cart error:', error);
+      const errorMessage = error.response?.data?.message || "Failed to add course to cart. Please try again.";
+
+      if (error.response?.status === 401) {
+        toast.error('Please sign in to add courses to your cart');
+      } else if (error.response?.status === 400 && error.response?.data?.message?.includes('already in cart')) {
+        toast.error('This course is already in your cart');
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
   return (
     <section className="w-dvw min-h-screen">
-      <Header />
       {/* Hero Carousel */}
       <div className="w-11/12 max-w-7xl mx-auto">
         <HeroCarousel />
       </div>
-      {loading ? (
-        <div className="min-h-[calc(100dvh-87px)] place-center">
-          <Loader className="size-8 animate-spin" />
-        </div>
-      ) : (
-        <>
-          <h2 className="text-center text-2xl font-semibold">
-            Courses For You
-          </h2>
-          <AnimatedGroup
-            preset="scale"
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5 gap-4 px-5 md:px-10 py-3 md:py-7"
-          >
-            {courses.map(
-              ({
-                _id,
-                title,
-                description,
-                thumbnailImage,
-                rating,
-                category,
-                instructor,
-                features,
-                price,
-              }) => (
-                <Thumbnail
-                  key={_id}
-                  _id={_id}
-                  title={title}
-                  description={description}
-                  thumbnailImage={thumbnailImage}
-                  features={features}
-                  rating={rating}
-                  category={category}
-                  instructor={instructor}
-                  price={price}
-                  addToCart={handleAddToCart}
-                />
-              )
-            )}
-          </AnimatedGroup>
-        </>
-      )}
+
+      <h2 className="text-center text-2xl font-semibold mb-8">
+        Courses For You
+      </h2>
+
+      <div className="container mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+        {loading ? (
+          [...Array(8)].map((_, i) => (
+            <ThumbnailSkeleton key={i} />
+          ))
+        ) : courses?.length > 0 ? courses.map(
+          ({
+            _id,
+            title,
+            description,
+            thumbnailImage,
+            rating,
+            category,
+            instructor,
+            price,
+          }) => (
+            <Thumbnail
+              key={_id}
+              _id={_id}
+              title={title}
+              description={description}
+              thumbnailImage={thumbnailImage}
+              rating={rating}
+              category={category}
+              instructor={instructor}
+              price={price}
+              addToCart={handleAddToCart}
+            />
+          )
+        ) : (
+          <div className="col-span-full text-center py-10">
+            <p className="text-muted-foreground">No courses available at the moment.</p>
+          </div>
+        )}
+      </div>
     </section>
   );
 };

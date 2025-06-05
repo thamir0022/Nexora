@@ -2,24 +2,15 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import {
-  Loader2,
-  Menu,
-  Search,
-  ShoppingBag,
-  X,
-  User,
-  Home,
-  BookOpen,
-  LogOut,
-} from "lucide-react";
+import { Loader2, Menu, X, User, Home, BookOpen, LogOut } from "lucide-react";
 import BrandLogo from "./BrandLogo";
 import { useAuth } from "@/hooks/useAuth";
 import axios from "@/config/axios";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useDebounce } from "use-debounce";
-import CartButton from "./CartButton";
+import CartButton from "./CartSheetButton";
 import AccountDropDown from "./AccountDropDown";
+import { CiHeart, CiSearch } from "react-icons/ci";
 
 const Header = () => {
   const [searchText, setSearchText] = useState("");
@@ -29,7 +20,7 @@ const Header = () => {
   const [debouncedSearchText] = useDebounce(searchText, 500);
   const searchRef = useRef(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -57,7 +48,7 @@ const Header = () => {
       try {
         const res = await axios.get(`/courses?query=${debouncedSearchText}`);
         if (res.data.success) {
-          setSearchResults(res.data.result.courses);
+          setSearchResults(res.data.courses);
           setShowDropdown(true);
         } else {
           setSearchResults([]);
@@ -108,7 +99,7 @@ const Header = () => {
         <div className="hidden md:block flex-grow max-w-xl" ref={searchRef}>
           <div className="relative w-full">
             <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-              <Search className="h-5 w-5 text-muted-foreground" />
+              <CiSearch className="size-6 text-muted-foreground" />
             </div>
             <Input
               type="text"
@@ -177,12 +168,12 @@ const Header = () => {
                                 "Unknown Instructor"}
                             </p>
                             <div className="flex flex-wrap gap-1 mt-1">
-                              {course.category?.slice(0, 2).map((cat, idx) => (
+                              {course.category?.slice(0, 2).map((cat) => (
                                 <span
-                                  key={idx}
+                                  key={cat._id}
                                   className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-600 rounded-full dark:text-gray-200"
                                 >
-                                  {cat}
+                                  {cat.name}
                                 </span>
                               ))}
                             </div>
@@ -205,8 +196,9 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-5">
-              <CartButton />
-              <AccountDropDown user={user} />
+              <CiHeart className="size-7 hover:fill-primary cursor-pointer" />
+              {user.role === "student" && <CartButton />}
+              <AccountDropDown user={user} setUser={setUser} />
             </div>
           ) : (
             <Link to="/sign-in">
@@ -237,7 +229,7 @@ const Header = () => {
                 <div className="py-6" ref={searchRef}>
                   <div className="relative w-full">
                     <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
-                      <Search className="h-5 w-5 text-muted-foreground" />
+                      <CiSearch className="size-6 text-muted-foreground" />
                     </div>
                     <Input
                       type="text"

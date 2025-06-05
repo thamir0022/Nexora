@@ -24,7 +24,6 @@ import User from "../models/user.model.js";
 export const sentOtp = async (req, res, next) => {
   try {
     const { email } = req.body || {};
-    const { forgotPassword } = req.query;
 
     if (!email) throw new AppError("Email is required", 400);
 
@@ -37,22 +36,20 @@ export const sentOtp = async (req, res, next) => {
     if (existingOtp)
       throw new AppError("OTP already send, Try again after some time", 429);
 
-    const generatedOtp = generateOtp();
-
-    Otp.create({
+    const newOTP = new Otp({
       email,
-      otp: generatedOtp,
+      otp: generateOtp()
     });
 
-    const info = await transporter.sendMail({
-      from: `"E Learning" <${NODEMAILER_EMAIL}>`,
+    await newOTP.save();
+
+    await transporter.sendMail({
+      from: `"Nexora" <${NODEMAILER_EMAIL}>`,
       to: `${email}`,
       subject: "OTP for your email verification",
-      text: `Hello, Man`, // plain‑text body
-      html: `<p>Here is your OTP to verify your email : <b>${generatedOtp}</b></p>`, // HTML body
+      text: `Greetings`, // plain‑text body
+      html: `<p>Here is your OTP to verify your email : <b>${newOTP.otp}</b></p>`, // HTML body
     });
-
-    console.log(info.messageId);
 
     res.status(200).json({ success: true, message: "Otp send successfully" });
   } catch (error) {
@@ -66,13 +63,15 @@ export const verifyOtp = async (req, res, next) => {
 
     if (!otp || !email) throw new AppError("Email and Otp are required", 400);
 
-    const existingOtp = await Otp.findOne({ email }).lean();
+    const existingOtp = await Otp.findOne({ email });
 
     if (!existingOtp) throw new AppError("Otp expired, Try resend OTP", 404);
 
     if (existingOtp.otp !== otp)
       throw new AppError("Incorrect Otp, Try again", 400);
 
+    await existingOtp.deleteOne();
+    
     const newUser = await User.create({
       email,
       emailVerified: true,
@@ -93,19 +92,17 @@ export const registerUser = async (req, res, next) => {
     const { userId, fullName, email, mobile, password, role } = req.body;
 
     // Validate required fields
-    if (!userId || !fullName || !email || !mobile || !password || !role) {
-      throw new AppError("All fields are required", 400);
-    }
+    if (!userId || !fullName || !email || !mobile || !password || !role) throw new AppError("All fields are required", 400);
+    
 
-    if (!["student", "instructor"].includes(role)) {
-      throw new AppError("Invalid role selected", 400);
-    }
+    if (!["student", "instructor"].includes(role)) throw new AppError("Invalid role selected", 400);
+    
 
     // Find user by ID
     const existingUser = await User.findById(userId);
-    if (!existingUser || existingUser.email !== email) {
+    if (!existingUser || existingUser.email !== email) 
       throw new AppError("User not found or email mismatch", 404);
-    }
+    
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -126,11 +123,11 @@ export const registerUser = async (req, res, next) => {
       const accessToken = generateAccessToken({ id: updatedUser._id, role });
       const refreshToken = generateRefreshToken({ id: updatedUser._id });
 
-      res.cookie("refresh_token", refreshToken, {
+      res.status(200).cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "Strict",
-        maxAge: 3600000, // 1 hour
+        maxAge: 7*24*60*60*1000 // 7 days
       });
 
       return res.status(201).json({
@@ -149,7 +146,6 @@ export const registerUser = async (req, res, next) => {
       user: userResponse,
     });
   } catch (error) {
-    console.error("Register User Error:", error);
     next(error);
   }
 };
@@ -188,6 +184,7 @@ export const signIn = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
+      maxAge: 7*24*60*60*1000 // 7 days
     });
 
     // ✅ Send access token in JSON response
@@ -207,6 +204,8 @@ export const signIn = async (req, res, next) => {
 export const refreshToken = async (req, res, next) => {
   try {
     const { refresh_token } = req.cookies;
+
+    console.log(refresh_token);
 
     if (!refresh_token) {
       return next(new AppError("Unauthorized", 401));
@@ -264,11 +263,7 @@ export const googleAuth = async (req, res, next) => {
     });
 
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) {
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid Google token" });
-    }
+    if (!payload || !payload.email) throw new AppError("Invalid Google token", 401);
 
     let user = await User.findOne({ email: payload.email });
 
@@ -289,12 +284,14 @@ export const googleAuth = async (req, res, next) => {
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user._id });
 
+    console.log(refreshToken);
+
     // Set refresh token cookie
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 1000 * 60 * 60, // 1 hour
+      maxAge: 7*24*60*60*1000 // 7 days
     });
 
     const { password, ...userData } = user.toObject();
@@ -308,7 +305,6 @@ export const googleAuth = async (req, res, next) => {
       accessToken,
     });
   } catch (error) {
-    console.error("Google Auth Error:", error);
     next(error);
   }
 };
@@ -346,14 +342,12 @@ export const sendResetPasswordLink = async (req, res, next) => {
     const resetUrl = `${CLIENT_BASE_URL}/reset-password/${token}`;
 
     const info = await transporter.sendMail({
-      from: `"E Learning" <${NODEMAILER_EMAIL}>`,
+      from: `"Nexora" <${NODEMAILER_EMAIL}>`,
       to: `${email}`,
       subject: "Password Reset Request",
       text: `Hello, ${user.fullName || "User"}`, // plain‑text body
       html: `<p>Here is your link for reset your password : <b><a href="${resetUrl}" target="_blank">Reset Password</a></b></p>`, // HTML body
     });
-
-    console.log(info.messageId);
 
     res
       .status(200)

@@ -1,5 +1,5 @@
 import { useAccessToken } from "@/hooks/useAccessToken";
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import {
@@ -20,35 +20,51 @@ import {
   CreditCard,
   LogOut,
   Sparkles,
+  AlertCircle,
+  LucideLayoutDashboard
 } from "lucide-react";
 import { HiComputerDesktop } from "react-icons/hi2";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";
-import { CiDark, CiLight } from "react-icons/ci";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "./ui/alert-dialog";
+import { CiDark, CiGrid42, CiLight, CiUser, CiWarning } from "react-icons/ci";
 import { useTheme } from "@/context/ThemeContext";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 
 const AccountDropDown = ({ variant, user, setUser }) => {
+  const [showLogoutDialog, setShowLogoutDialog] = useState(false);
   const { setToken } = useAccessToken();
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
-  const { setTheme } = useTheme();
+  const { theme, setTheme } = useTheme();
 
   const handleLogout = async () => {
+    setShowLogoutDialog(false);
     try {
-      const res = await axios.get("/auth/sign-out");
+      const { data } = await axios.get("/auth/sign-out");
+      if (!data.success) {
+        const message = data.message || "Failed to log out";
+        return toast.error(message);
+      }
 
-      console.log(res);
-
-      if (!res.data.success) return toast.error(res.data.message || "Logout failed");
-      
       setUser(null);
       setToken(null);
       toast.success("Logged out successfully");
       navigate("/sign-in");
     } catch (error) {
+      console.error(error);
       const errorMessage = error.response?.data?.message || "Logout failed";
       toast.error(errorMessage);
-    }
+    } 
   };
 
   const Wrapper = variant === "sidebar" ? SidebarMenuButton : "div";
@@ -59,10 +75,10 @@ const AccountDropDown = ({ variant, user, setUser }) => {
         <Wrapper
           {...(variant === "sidebar"
             ? {
-                size: "lg",
-                className:
-                  "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
-              }
+              size: "lg",
+              className:
+                "data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground",
+            }
             : {})}
         >
           <Avatar className="h-8 w-8 rounded-lg cursor-pointer">
@@ -115,27 +131,20 @@ const AccountDropDown = ({ variant, user, setUser }) => {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <Sparkles />
-            Upgrade to Pro
+          <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/dashboard")}>
+            <CiGrid42 className="size-5!"/>
+            Dashboard
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>
-            <BadgeCheck />
+          <DropdownMenuItem className="cursor-pointer" onClick={() => navigate("/dashboard?tab=account")}>
+            <CiUser className="size-5!"/>
             Account
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <CreditCard />
-            Billing
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Bell />
-            Notifications
           </DropdownMenuItem>
           <DropdownMenuItem className="hover:bg-transparent!">
             <ToggleGroup
+              defaultValue={theme}
               onValueChange={(value) => setTheme(value)}
               className="w-full"
               variant="outline"
@@ -154,9 +163,37 @@ const AccountDropDown = ({ variant, user, setUser }) => {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => handleLogout()}>
-          <LogOut />
-          Log out
+        <DropdownMenuItem asChild>
+          <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
+            <AlertDialogTrigger asChild>
+              <button className="w-full flex items-center px-2 py-1.5 text-sm outline-none hover:bg-accent focus:bg-accent rounded">
+                <LogOut className="mr-2 h-4 w-4" />
+                <span>Log out</span>
+              </button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
+                  <CiWarning className="size-6" />
+                </div>
+                <AlertDialogTitle className="text-xl font-semibold text-center">
+                  Are you sure you want to log out?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-center">
+                  You will need to sign in again to access your account
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter className="sm:justify-center gap-3 sm:gap-2">
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => handleLogout()}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Yes, log out
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

@@ -50,5 +50,22 @@ export const signInFields = [
     type: "password",
     name: "password",
     placeHolder: "••••••••",
+  },
+];
+
+export const lessonFields = [
+  {
+    id: "title",
+    label: "Title",
+    type: "text",
+    name: "title",
+    placeHolder: "Enter lesson title",
+  },
+  {
+    id: "description",
+    label: "Description",
+    type: "textarea",
+    name: "description",
+    placeHolder: "Enter lesson description",
   }
 ];

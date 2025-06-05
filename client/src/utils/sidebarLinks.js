@@ -1,43 +1,21 @@
-import {
-  BookOpen,
-  LifeBuoy,
-  User,
-  Book,
-  UserCircle,
-  HelpCircle,
-  Users,
-  Library,
-  ShoppingCart,
-  Settings,
-  Heart,
-  GraduationCap,
-  FileText,
-  MessageCircle,
-  Receipt,
-  LibraryBig,
-  House,
-  ChartSpline,
-  UsersRound,
-  Rows4,
-  ChartPie,
-  Boxes,
-} from "lucide-react";
+import { CiBoxes, CiChat1, CiChat2, CiDollar, CiFolderOn, CiGrid42, CiHeart, CiHome, CiSettings, CiUser, CiViewList } from "react-icons/ci";
+
 
 const sub = [
   {
     title: "Account",
     url: "/dashboard?tab=account",
-    icon: User,
+    icon: CiUser,
   },
   {
     title: "Settings",
     url: "/dashboard?tab=settings",
-    icon: Settings,
+    icon: CiSettings,
   },
   {
     title: "Support",
     url: "/dashboard?tab=support",
-    icon: LifeBuoy,
+    icon: CiChat1,
   },
 ];
 
@@ -46,12 +24,12 @@ const studentNav = {
     {
       title: "Home",
       url: "/",
-      icon: House,
+      icon: CiHome,
     },
     {
       title: "My Learning",
       url: "/dashboard?tab=my-courses",
-      icon: LibraryBig,
+      icon: CiFolderOn,
       items: [
         {
           title: "My Courses",
@@ -66,7 +44,7 @@ const studentNav = {
     {
       title: "Wishlist",
       url: "/dashboard?tab=wishlist",
-      icon: Heart,
+      icon: CiHeart,
     },
   ],
   sub,
@@ -77,16 +55,15 @@ const instructorNav = {
     {
       title: "Home",
       url: "/",
-      icon: House,
+      icon: CiHome,
     },
     {
-      title: "Courses",
-      url: "/dashboard?tab=instructor-courses",
-      icon: Book,
+      title: "Course Management",
+      icon: CiFolderOn,
       items: [
         {
           title: "My Courses",
-          url: "/dashboard?tab=instructor-courses",
+          url: "/dashboard?tab=courses",
         },
         {
           title: "Create Course",
@@ -107,50 +84,37 @@ const adminNav = {
     {
       title: "Overview",
       url: "/dashboard",
-      icon: ChartPie,
+      icon: CiGrid42,
     },
     {
       title: "Users",
-      icon: UsersRound,
-      items: [
-        {
-          title: "All Users",
-          url: "/dashboard?tab=users",
-        },
-        {
-          title: "Instructor Requests",
-          url: "/dashboard?tab=pending-instructors",
-        },
-      ],
+      icon: CiUser,
+      url: "/dashboard?tab=users",
+    },
+    {
+      title: "Instructor Requests",
+      icon: CiChat2,
+      url: "/dashboard?tab=pending-instructors",
     },
     {
       title: "Courses",
-      icon: LibraryBig,
-      items: [
-        {
-          title: "All Courses",
-          url: "/dashboard?tab=courses",
-        },
-        {
-          title: "Add Course",
-          url: "/dashboard?tab=add-course",
-        },
-      ],
+      icon: CiFolderOn,
+      url: "/dashboard?tab=courses"
     },
     {
       title: "Category",
-      url: "/dashboard?tab=category",
-      icon: Boxes,
+      url: "/dashboard?tab=categories",
+      icon: CiBoxes,
     },
     {
       title: "Orders",
       url: "/dashboard?tab=orders",
-      icon: Rows4,
+      icon: CiViewList,
     },
     {
       title: "Revenue Analytics",
       url: "/dashboard?tab=orders",
-      icon: ChartSpline,
+      icon: CiDollar,
     },
   ],
   sub,

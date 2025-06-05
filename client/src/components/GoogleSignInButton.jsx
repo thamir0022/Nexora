@@ -9,12 +9,14 @@ const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const GoogleSignInButton = ({ text = "signin" }) => {
   const navigate = useNavigate();
-  const { setUser } = useAuth();
-  const { setToken } = useAccessToken();
+  const { user, setUser } = useAuth();
+  const { token, setToken } = useAccessToken();
 
   const onSuccess = async (googleCredential) => {
     const res = await axios.post("/auth/google", {
       credential: googleCredential.credential,
+    }, {
+      withCredentials: true
     });
 
     if (!res.data.success) {
@@ -31,6 +33,8 @@ const GoogleSignInButton = ({ text = "signin" }) => {
     toast.error(error.message || "Login Failed");
     console.log(error);
   };
+
+  console.log({ user, token })
 
   return (
     <GoogleOAuthProvider clientId={clientId}>
