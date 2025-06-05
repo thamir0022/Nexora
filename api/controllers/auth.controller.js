@@ -33,15 +33,15 @@ export const sentOtp = async (req, res, next) => {
 
     const existingOtp = await Otp.findOne({ email }).lean();
 
+    const randomOTP = generateOtp();
+
     if (existingOtp)
       throw new AppError("OTP already send, Try again after some time", 429);
 
-    const newOTP = new Otp({
+    const newOTP  = await Otp.create({
       email,
-      otp: generateOtp()
+      otp: randomOTP
     });
-
-    await newOTP.save();
 
     await transporter.sendMail({
       from: `"Nexora" <${NODEMAILER_EMAIL}>`,

@@ -7,7 +7,7 @@ import { Link } from 'react-router-dom';
 
 const CoursePreviewPage = ({ course }) => {
   return (
-    <div className="min-h-dvh p-5">
+    <div className="min-h-dvh p-5 mt-3">
       <div className="grid lg:grid-cols-3 gap-4">
         {/* Left Content */}
         <div className="lg:col-span-2 space-y-4">

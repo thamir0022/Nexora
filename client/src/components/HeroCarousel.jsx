@@ -47,9 +47,9 @@ const HeroCarousel = () => {
   }, [nextSlide])
 
   return (
-    <div className="relative w-full h-[500px] md:h-[600px] overflow-hidden rounded-2xl my-8">
+    <div className="relative max-xl:w-11/12 xl:max-w-7xl mx-auto  h-[500px] md:h-[600px] overflow-hidden rounded-2xl mt-9">
       {/* Slides */}
-      <div className="relative w-full h-full">
+      <div className="relative size-full">
         {slides.map((slide, index) => (
           <div
             key={slide.id}

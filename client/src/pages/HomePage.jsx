@@ -69,14 +69,12 @@ const HomePage = () => {
   };
 
   return (
-    <section className="w-dvw min-h-screen">
+    <section className="container mx-auto">
       {/* Hero Carousel */}
-      <div className="w-11/12 max-w-7xl mx-auto">
         <HeroCarousel />
-      </div>
 
-      <h2 className="text-center text-2xl font-semibold mb-8">
-        Courses For You
+      <h2 className="text-center text-2xl font-semibold my-4">
+        Explore Top-Rated Programs
       </h2>
 
       <div className="container mx-auto grid md:grid-cols-2 lg:grid-cols-4 gap-3">

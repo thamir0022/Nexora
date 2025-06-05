@@ -84,7 +84,7 @@ const Header = () => {
 
   return (
     <header
-      className="w-11/12 max-w-7xl mx-auto relative top-4 px-4 py-3 md:py-4 mb-4
+      className="w-11/12 max-w-7xl mx-auto relative top-4 px-4 py-3 md:py-4 
       border border-white/20 dark:border-white/10 shadow-lg rounded-2xl
       bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl
       transition-all duration-300 row-span-1 col-span-full z-50"
