@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CiStar, CiUser } from "react-icons/ci";
 
 export function StarRating({
   maxRating = 5,
@@ -9,6 +10,8 @@ export function StarRating({
   onChange,
   readonly = false,
   className,
+  totalRatingCount,
+  icon = false,
 }) {
   const [rating, setRating] = useState(value);
   const [hoverRating, setHoverRating] = useState(0);
@@ -102,9 +105,15 @@ export function StarRating({
         );
       })}
 
-      {!readonly && (
+      {readonly ? (
+        <span className={`flex gap-1 items-center text-${size} text-muted-foreground`}>
+          {icon && <CiUser className="size-4 text-muted-foreground" />}
+          {totalRatingCount || "0"}
+        </span>
+      ) : (
         <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
           {rating > 0 ? `${rating.toFixed(1)} of ${maxRating}` : "Rate"}
+          {icon && <CiStar className="size-4 text-muted-foreground" />}
         </span>
       )}
     </div>

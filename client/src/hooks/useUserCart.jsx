@@ -57,8 +57,6 @@ export const useUserCart = () => {
     }
   };
 
-  console.log("cart at hook", cart);
-
 
   const removeFromCart = async (courseId) => {
     setIsRemoving(true);

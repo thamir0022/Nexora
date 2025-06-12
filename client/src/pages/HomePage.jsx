@@ -4,12 +4,14 @@ import Thumbnail from "@/components/Thumbnail";
 import { useAuth } from "@/hooks/useAuth";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const HomePage = () => {
   const [courses, setCourses] = useState([]);
   const [loading, setloading] = useState(false);
   const { user } = useAuth();
+  const navigate = useNavigate();
   const axios = useAxiosPrivate();
 
   useEffect(() => {
@@ -37,36 +39,6 @@ const HomePage = () => {
     };
     fetchCourses();
   }, [axios]);
-
-  const handleAddToCart = async (courseId) => {
-    if (!user?._id) {
-      toast.error('Please sign in to add courses to your cart');
-      return;
-    }
-
-    try {
-      const { data } = await axios.post(`/users/${user._id}/cart`, { courseId });
-
-      if (!data.success) {
-        const errorMessage = data?.message || "Failed to add course to cart";
-        toast.error(errorMessage);
-        return;
-      }
-
-      toast.success(data.message || "Course added to cart successfully");
-    } catch (error) {
-      console.error('Add to cart error:', error);
-      const errorMessage = error.response?.data?.message || "Failed to add course to cart. Please try again.";
-
-      if (error.response?.status === 401) {
-        toast.error('Please sign in to add courses to your cart');
-      } else if (error.response?.status === 400 && error.response?.data?.message?.includes('already in cart')) {
-        toast.error('This course is already in your cart');
-      } else {
-        toast.error(errorMessage);
-      }
-    }
-  };
 
   return (
     <section className="container mx-auto">
@@ -103,7 +75,6 @@ const HomePage = () => {
               category={category}
               instructor={instructor}
               price={price}
-              addToCart={handleAddToCart}
             />
           )
         ) : (

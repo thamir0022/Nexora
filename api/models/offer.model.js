@@ -6,7 +6,7 @@ const offerSchema = new mongoose.Schema(
     description: { type: String },
     type: {
       type: String,
-      enum: ["category", "course", "instructor", "global"],
+      enum: ["category", "course", "instructor", "global", "first-time"],
       required: true,
     },
     discountType: {
@@ -21,7 +21,11 @@ const offerSchema = new mongoose.Schema(
     },
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
-    isActive: { type: Boolean, default: true },
+    status: {
+      type: String,
+      enum: ["upcoming", "active", "expired", "inactive", "paused"],
+      default: "upcoming",
+    },
   },
   { timestamps: true }
 );

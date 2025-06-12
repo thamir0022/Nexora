@@ -58,6 +58,7 @@ const App = () => {
           <Route element={<MainLayout />}>
             {/* Student Course View */}
             <Route path="courses/:courseId" element={<StudentSingleCoursePage />} />
+            <Route path="courses/:courseId/:lessonId" element={<StudentSingleCoursePage />} />
           </Route>
         </Route>
       </Routes>

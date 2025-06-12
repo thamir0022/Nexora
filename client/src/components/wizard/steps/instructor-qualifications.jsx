@@ -86,7 +86,6 @@ export const InstructorQualifications = ({ formData, nextStep, previousStep }) =
   }
 
   const handleUploadSuccess = (result, index) => {
-    console.log(result)
     const {secure_url} = result;
     if (!secure_url) {
       toast.error("Upload failed!")

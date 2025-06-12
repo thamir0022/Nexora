@@ -47,7 +47,7 @@ const HeroCarousel = () => {
   }, [nextSlide])
 
   return (
-    <div className="relative max-xl:w-11/12 xl:max-w-7xl mx-auto  h-[500px] md:h-[600px] overflow-hidden rounded-2xl mt-9">
+    <div className="relative max-xl:w-11/12 xl:max-w-7xl mx-auto h-[500px] md:h-[600px] overflow-hidden rounded-2xl mt-9">
       {/* Slides */}
       <div className="relative size-full">
         {slides.map((slide, index) => (
@@ -59,7 +59,7 @@ const HeroCarousel = () => {
           >
             {/* Background Image */}
             <div className="absolute inset-0 w-full h-full">
-              <img src={slide.image || "/placeholder.svg"} alt={slide.title} className="w-full h-full object-cover" />
+              <img src={slide.image || "/placeholder.svg"} alt={slide.title} className="w-full h-full object-cover pointer-events-none" />
               {/* Overlay */}
               <div className="absolute inset-0 bg-gradient-to-r from-black/60 to-black/30" />
             </div>

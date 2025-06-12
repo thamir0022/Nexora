@@ -27,6 +27,7 @@
     "mongoose": "^8.14.1",
     "natural": "^8.1.0",
     "nodemailer": "^7.0.3",
+    "razorpay": "^2.9.6",
     "stopword": "^3.1.4",
     "zod": "^3.24.4"
   },

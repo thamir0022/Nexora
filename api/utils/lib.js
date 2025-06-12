@@ -1,5 +1,5 @@
 import Course from "../models/course.model.js";
-import Purchase from "../models/purchase.model.js";
+import Enrollment from "../models/enrollment.model.js";
 import { AppError } from "./apperror.js";
 
 export const getSort = (sortBy) => {
@@ -31,6 +31,6 @@ export const hasAccess = async (courseId, userId, userRole) => {
   if (course.instructor.toString() === userId) return true;
 
   // Grant access if the user has purchased the course
-  const isEnrolled = await Purchase.exists({ user: userId, course: courseId });
+  const isEnrolled = await Enrollment.exists({ user: userId, course: courseId });
   return !!isEnrolled;
 };

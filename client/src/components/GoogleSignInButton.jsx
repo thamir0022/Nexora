@@ -34,7 +34,6 @@ const GoogleSignInButton = ({ text = "signin" }) => {
     console.log(error);
   };
 
-  console.log({ user, token })
 
   return (
     <GoogleOAuthProvider clientId={clientId}>

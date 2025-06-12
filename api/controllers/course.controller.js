@@ -6,6 +6,7 @@ import natural from "natural";
 import sw from "stopword";
 import { getSort, hasAccess } from "../utils/lib.js";
 import User from "../models/user.model.js";
+import CourseProgress from "../models/progress.model.js";
 
 // GET: All courses
 export const getAllCourses = async (req, res, next) => {
@@ -58,29 +59,27 @@ export const getAllCourses = async (req, res, next) => {
   }
 };
 
-// GET: Single course
+// GET: Single Course
 export const getCourseById = async (req, res, next) => {
   try {
-    const { _id, role } = req.user;
+    const { _id: userId, role } = req.user;
     const { courseId } = req.params;
 
+    // 1. Validate course ID
     if (!courseId || !isValidObjectId(courseId)) {
-      const message = courseId ? "Invalid course Id" : "Course Id is required";
+      const message = courseId ? "Invalid course ID" : "Course ID is required";
       throw new AppError(message, 400);
     }
 
-    const hasUserAccess = await hasAccess(courseId, _id, role);
+    // 2. Check access
+    const hasUserAccess = await hasAccess(courseId, userId, role);
 
+    // 3. Fetch course
     const course = await Course.findById(courseId)
+      .select("-keywords")
       .populate([
-        {
-          path: "category",
-          select: "name",
-        },
-        {
-          path: "instructor",
-          select: "fullName email profilePicture", // only fetch name and email
-        },
+        { path: "category", select: "name" },
+        { path: "instructor", select: "fullName email profilePicture" },
         {
           path: "lessons",
           select: hasUserAccess ? "" : "title description thumbnailImage",
@@ -90,16 +89,108 @@ export const getCourseById = async (req, res, next) => {
 
     if (!course) throw new AppError("Course not found!", 404);
 
+    // 4. Fetch progress if user has access
+    let progress = null;
+    if (hasUserAccess) {
+      progress = await CourseProgress.findOne({ user: userId, course: courseId })
+        .select("-_id completedLessons progressPercentage lastCompletedLesson")
+        .lean();
+
+      // default fallback
+      if (!progress) {
+        progress = {
+          completedLessons: [],
+          progressPercentage: 0,
+          lastCompletedLesson: null,
+        };
+      }
+    }
+
+    // 5. Send response
     res.status(200).json({
       success: true,
       message: "Course fetched successfully",
       course,
       hasAccess: hasUserAccess,
+      ...(hasUserAccess && { progress }),
     });
   } catch (error) {
     next(error);
   }
 };
+
+export const getCourseProgress = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+
+    if (!courseId || !isValidObjectId(courseId)) {
+      const message = courseId ? "Invalid course ID" : "Course ID is required";
+      throw new AppError(message, 400);
+    }
+
+    let progress = await CourseProgress.findOne({ user: req.user._id, course: courseId })
+      .select("-_id completedLessons progressPercentage lastCompletedLesson")
+      .lean();
+
+    if (!progress) {
+      progress = {
+        completedLessons: [],
+        progressPercentage: 0,
+        lastCompletedLesson: null,
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Course progress fetched successfully",
+      progress,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export const updateLessonProgress = async (req, res, next) => {
+  const { courseId, lessonId } = req.params;
+  const { status } = req.body;
+  const {_id: user} = req.user;
+
+  if (!['completed', 'uncompleted'].includes(status)) {
+    return res.status(400).json({ message: "Invalid status" });
+  }
+
+
+  try {
+    let progress = await CourseProgress.findOne({ user, course: courseId });
+
+
+    if (!progress){
+      progress = await CourseProgress.create({
+        user,
+        course: courseId,
+        completedLessons: [],
+        progressPercentage: 0,
+        lastCompletedLesson: null,
+      });
+    }
+
+    const index = progress.completedLessons.indexOf(lessonId);
+
+    if (status === "completed" && index === -1) {
+      progress.completedLessons.push(lessonId);
+    } else if (status === "uncompleted" && index !== -1) {
+      progress.completedLessons.splice(index, 1);
+    }
+
+    await progress.save();
+
+    res.status(200).json({success: true, message: `Lesson marked as ${status}`, progress });
+  } catch (err) {
+    next(err);
+  }
+};
+
+
 
 // POST: Add new course
 const REQFIELDS = ["title", "description", "price", "category", "hashtags"];
@@ -178,7 +269,6 @@ export const addCourse = async (req, res, next) => {
 
 // PUT: Update course
 export const updateCourse = async (req, res, next) => {
-  console.log(req.body);
   try {
     const { courseId } = req.params;
 
@@ -205,7 +295,6 @@ export const updateCourse = async (req, res, next) => {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
 
-    console.log(updates);
 
     if (Object.keys(updates).length === 0)
       throw new AppError("No valid fields provided for update.", 400);

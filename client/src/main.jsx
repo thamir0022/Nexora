@@ -8,6 +8,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { CartProvider } from "./context/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
+import { WishlistProvider } from "./context/WishlistContext";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
@@ -15,8 +16,10 @@ createRoot(document.getElementById("root")).render(
       <ThemeProvider storageKey="vite-ui-theme">
         <AuthProvider>
           <CartProvider>
-            <ScrollToTop />
-            <App />
+            <WishlistProvider>
+              <ScrollToTop />
+              <App />
+            </WishlistProvider>
           </CartProvider>
           <Toaster />
         </AuthProvider>

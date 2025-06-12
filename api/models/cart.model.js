@@ -1,6 +1,5 @@
 import {Schema, model} from 'mongoose';
 
-
 const cartSchema = new Schema(
   {
     userId: {
@@ -11,13 +10,13 @@ const cartSchema = new Schema(
     items: [
       {
         type: Schema.Types.ObjectId,
-        ref: 'Course', // adjust the ref name based on your actual product model
+        ref: 'Course',
         required: true,
       }
     ],
   },
   {
-    timestamps: true, // adds createdAt and updatedAt
+    timestamps: true,
   }
 );
 

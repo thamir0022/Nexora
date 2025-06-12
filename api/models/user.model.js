@@ -34,15 +34,6 @@ const UserSchema = new Schema(
     joinDate: {
       type: Date,
     },
-
-    // Student-only field
-    enrolledCourses: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Course", // assuming a Course model exists
-      },
-    ],
-
     wallet: {
       balance: {
         type: Number,
@@ -58,6 +49,7 @@ const UserSchema = new Schema(
     usedCoupons: [
       {
         code: String,
+        usedCount: Number,
         usedAt: Date,
       },
     ],

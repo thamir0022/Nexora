@@ -1,5 +1,6 @@
 import { lessonFields } from "../constants/userFields.js";
 import Course from "../models/course.model.js";
+import Enrollment from "../models/enrollment.model.js";
 import Lesson from "../models/lesson.model.js";
 import User from "../models/user.model.js";
 import { AppError } from "../utils/apperror.js";
@@ -77,6 +78,8 @@ export const getLessonInCourse = async (req, res, next) => {
     const lesson = await Lesson.findById(lessonId);
     if (!lesson) throw new AppError("Lesson not found", 404);
 
+    await Enrollment.updateOne({user: _id, course: courseId}, {$set: {lastAccessed: Date.now()}});
+    
     res.status(200).json({
       success: true,
       message: "Lesson fetched successfully",

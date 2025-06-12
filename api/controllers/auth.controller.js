@@ -205,8 +205,6 @@ export const refreshToken = async (req, res, next) => {
   try {
     const { refresh_token } = req.cookies;
 
-    console.log(refresh_token);
-
     if (!refresh_token) {
       return next(new AppError("Unauthorized", 401));
     }
@@ -283,8 +281,6 @@ export const googleAuth = async (req, res, next) => {
     // Generate tokens
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user._id });
-
-    console.log(refreshToken);
 
     // Set refresh token cookie
     res.cookie("refresh_token", refreshToken, {

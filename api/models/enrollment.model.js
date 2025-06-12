@@ -2,25 +2,19 @@ import mongoose, { Schema, Types } from "mongoose";
 
 const enrollmentSchema = new Schema(
   {
-    userId: {
+    user: {
       type: Types.ObjectId,
-      ref: "users",
+      ref: "User",
       required: true,
     },
-    courseId: {
+    course: {
       type: Types.ObjectId,
-      ref: "courses",
+      ref: "Course",
       required: true,
     },
     enrolledAt: {
       type: Date,
       default: Date.now,
-    },
-    progress: {
-      type: Number,
-      default: 0, // Percentage (0–100)
-      min: 0,
-      max: 100,
     },
     completed: {
       type: Boolean,

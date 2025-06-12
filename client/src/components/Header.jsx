@@ -11,6 +11,7 @@ import { useDebounce } from "use-debounce";
 import CartButton from "./CartSheetButton";
 import AccountDropDown from "./AccountDropDown";
 import { CiHeart, CiSearch } from "react-icons/ci";
+import WishlistButton from "./WishlistButton";
 
 const Header = () => {
   const [searchText, setSearchText] = useState("");
@@ -196,8 +197,12 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-5">
-              <CiHeart className="size-7 hover:fill-primary cursor-pointer" />
-              {user.role === "student" && <CartButton />}
+              {user.role === "student" && (
+                <>
+                  <WishlistButton />
+                  <CartButton />
+                </>
+              )}
               <AccountDropDown user={user} setUser={setUser} />
             </div>
           ) : (
@@ -359,7 +364,7 @@ const Header = () => {
                     <button className="w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left">
                       <LogOut className="h-5 w-5 text-gray-500 dark:text-gray-400" />
                       <span className="font-medium dark:text-white">
-                        Sign Out
+                        Log Out
                       </span>
                     </button>
                   ) : (

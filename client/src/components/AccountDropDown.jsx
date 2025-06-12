@@ -14,14 +14,8 @@ import {
 import { SidebarMenuButton } from "./ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import {
-  BadgeCheck,
-  Bell,
   ChevronsUpDown,
-  CreditCard,
-  LogOut,
-  Sparkles,
-  AlertCircle,
-  LucideLayoutDashboard
+  LogOut, 
 } from "lucide-react";
 import { HiComputerDesktop } from "react-icons/hi2";
 import { ToggleGroup, ToggleGroupItem } from "./ui/toggle-group";

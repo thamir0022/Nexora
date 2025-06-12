@@ -63,7 +63,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { cn } from "@/lib/utils";
-import VideoPlayer from "@/components/VideoPlayer";
+import VideoPlayer from "@/components/video-player";
 import CloudinaryUploadWidget from "@/components/CloudinaryUploadWidget";
 import { CardFooter } from "@/components/ui/card";
 import CustomInput from "@/components/CustomInput";

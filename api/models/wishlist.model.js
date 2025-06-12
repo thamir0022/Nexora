@@ -7,7 +7,7 @@ const wishlistSchema = new Schema(
       ref: 'User',
       required: true,
     },
-    courseIds: [
+    items: [
       {
         type: Schema.Types.ObjectId,
         ref: 'Course',
@@ -16,7 +16,7 @@ const wishlistSchema = new Schema(
     ],
   },
   {
-    timestamps: true, // adds createdAt and updatedAt fields
+    timestamps: true,
   }
 );
 

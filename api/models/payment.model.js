@@ -2,16 +2,16 @@ import { model, Schema } from "mongoose";
 
 const paymentSchema = new Schema(
   {
-    userId: {
+    user: {
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
     },
-    purchaseId: {
+    course: [{
       type: Schema.Types.ObjectId,
-      ref: 'Purchase',
+      ref: 'Course',
       required: true,
-    },
+    }],
     amount: {
       type: Number,
       required: true,
@@ -23,18 +23,26 @@ const paymentSchema = new Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['credit_card', 'debit_card', 'paypal', 'upi', 'net_banking'],
+      enum: ['credit_card', 'debit_card', 'paypal', 'upi', 'net_banking', 'razorpay'],
       required: true,
     },
     paymentStatus: {
       type: String,
-      enum: ['pending', 'completed', 'failed', 'refunded'],
+      enum: ['pending', 'completed', 'failed', 'refunded', 'cancelled'],
       default: 'pending',
     },
     transactionId: {
       type: String,
       required: true,
       unique: true,
+    },
+    refund: {
+      isRefunded: {
+        type: Boolean,
+        default: false,
+      },
+      refundedAt: Date,
+      reason: String,
     },
   },
   {
