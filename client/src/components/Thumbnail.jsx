@@ -84,7 +84,7 @@ export default function Thumbnail({
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900 overflow-hidden">
-      <Link to={user.role === "student" ? `/courses/${_id}` : `/dashboard/courses/${_id}`}>
+      <Link to={user?.role === "student" ? `/courses/${_id}` : `/dashboard/courses/${_id}`}>
         <img
           src={thumbnailImage}
           alt={title}
@@ -92,7 +92,7 @@ export default function Thumbnail({
         />
       </Link>
       <div className="p-4 space-y-2">
-        <Link to={user.role === "student" ? `/courses/${_id}` : `/dashboard/courses/${_id}`}>
+        <Link to={user?.role === "student" ? `/courses/${_id}` : `/dashboard/courses/${_id}`}>
           <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100 line-clamp-2">{title}</h2>
           <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">{description}</p>
         </Link>
