@@ -139,7 +139,7 @@ const AccountDropDown = ({ variant, user, setUser }) => {
           <DropdownMenuItem className="hover:bg-transparent!">
             <ToggleGroup
               defaultValue={theme}
-              onValueChange={(value) => setTheme(value)}
+              onValueChange={(value) => setTheme(value || theme)}
               className="w-full"
               variant="outline"
               type="single"

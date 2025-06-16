@@ -307,7 +307,7 @@ const CartButton = () => {
 
               <SheetFooter className="flex justify-end">
                 <SheetClose asChild>
-                  <PaymentButton isCart text="Proceed to Checkout" amount={totalPrice} couponData={discountData} />
+                  <PaymentButton className="py-6" isCart icon text="Proceed to Checkout" amount={totalPrice}/>
                 </SheetClose>
               </SheetFooter>
             </div>

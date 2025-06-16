@@ -13,20 +13,24 @@ const GoogleSignInButton = ({ text = "signin" }) => {
   const { token, setToken } = useAccessToken();
 
   const onSuccess = async (googleCredential) => {
-    const res = await axios.post("/auth/google", {
-      credential: googleCredential.credential,
-    }, {
-      withCredentials: true
-    });
+    try {
+      const res = await axios.post("/auth/google", {
+        credential: googleCredential.credential,
+      }, {
+        withCredentials: true
+      });
 
-    if (!res.data.success) {
-      return toast.error(res.data.message || "Something went wrong!");
+      if (!res.data.success) {
+        return toast.error(res.data.message || "Something went wrong!");
+      }
+
+      setUser(res.data.user);
+      setToken(res.data.accessToken);
+      toast.success(res.data.message || "Login Successful!");
+      navigate("/");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Login Failed");
     }
-
-    setUser(res.data.user);
-    setToken(res.data.accessToken);
-    toast.success(res.data.message || "Login Successful!");
-    navigate("/");
   };
 
   const onError = (error) => {

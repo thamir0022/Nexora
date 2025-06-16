@@ -1,4 +1,4 @@
-import { CiBoxes, CiChat1, CiChat2, CiDiscount1, CiDollar, CiFolderOn, CiGrid42, CiHeart, CiHome, CiSettings, CiShoppingTag, CiUser, CiViewList } from "react-icons/ci";
+import { CiBellOn, CiBoxes, CiChat1, CiChat2, CiDiscount1, CiDollar, CiFolderOn, CiGrid42, CiHeart, CiHome, CiSettings, CiShoppingTag, CiUser, CiViewList } from "react-icons/ci";
 
 
 const sub = [
@@ -6,6 +6,11 @@ const sub = [
     title: "Account",
     url: "/dashboard?tab=account",
     icon: CiUser,
+  },
+  {
+    title: "Notifications",
+    icon: CiBellOn,
+    url: "/dashboard?tab=notifications",
   },
   {
     title: "Settings",
@@ -90,6 +95,11 @@ const adminNav = {
       title: "Users",
       icon: CiUser,
       url: "/dashboard?tab=users",
+    },
+    {
+      title: "Notifications",
+      icon: CiBellOn,
+      url: "/dashboard?tab=notifications",
     },
     {
       title: "Instructor Requests",

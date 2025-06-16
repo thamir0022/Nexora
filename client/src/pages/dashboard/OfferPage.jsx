@@ -1,24 +1,19 @@
+"use client"
+
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { format } from "date-fns"
-import { Search, X, Plus, Calendar, Percent, Clock, Loader2, Check, Trash2 } from "lucide-react"
+import { Search, X, Plus, Calendar, Percent, Clock, Loader2, Check, Trash2, ChevronDown } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +25,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DataTable } from "@/components/datatable/data-table"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { cn } from "@/lib/utils"
@@ -41,30 +37,337 @@ const offerSchema = z
     name: z.string().min(1, "Offer name is required").max(100, "Name must be less than 100 characters"),
     description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
     type: z.string().min(1, "Offer type is required"),
-    discountType: z.enum(["percentage", "flat"], {
-      errorMap: () => ({ message: "Discount type must be percentage or flat" }),
-    }),
+    discountType: z.enum(["percentage", "flat"]),
     discountValue: z.number().min(0.01, "Discount value must be greater than 0"),
-    startDate: z
-      .string()
-      .refine((val) => !isNaN(Date.parse(val)), {
-        message: "Invalid date format",
-      })
-      .transform((val) => new Date(val)),
-    endDate: z
-      .string()
-      .refine((val) => !isNaN(Date.parse(val)), {
-        message: "Invalid date format",
-      })
-      .transform((val) => new Date(val)),
-    status: z.enum(["upcoming", "active", "expired", "inactive", "paused"], {
-      errorMap: () => ({ message: "Invalid status" }),
-    }),
+    applicableTo: z.array(z.string()).optional(),
+    startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date format"),
+    endDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date format"),
+    status: z.enum(["upcoming", "active", "expired", "inactive", "paused"]),
   })
-  .refine((data) => data.endDate > data.startDate, {
+  .refine((data) => new Date(data.endDate) > new Date(data.startDate), {
     message: "End date must be after start date",
     path: ["endDate"],
   })
+
+// Multi-select combobox component
+const MultiSelectCombobox = ({ data, loading, selectedValues, onSelectionChange, placeholder, type }) => {
+  const [open, setOpen] = useState(false)
+
+  const getDisplayName = (item) => {
+    switch (type) {
+      case "course":
+        return item.title || item.name
+      case "category":
+        return item.name
+      case "instructor":
+        return item.name || `${item.firstName} ${item.lastName}`
+      default:
+        return item.name
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button variant="outline" role="combobox" className="w-full justify-between">
+            {selectedValues.length > 0
+              ? `${selectedValues.length} ${type}${selectedValues.length > 1 ? "s" : ""} selected`
+              : placeholder}
+            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-full p-0" align="start">
+          <Command>
+            <CommandInput placeholder={`Search ${type}s...`} />
+            <CommandList>
+              <CommandEmpty>{loading ? `Loading ${type}s...` : `No ${type}s found.`}</CommandEmpty>
+              <CommandGroup>
+                {data.map((item) => (
+                  <CommandItem
+                    key={item._id}
+                    onSelect={() => {
+                      const newValues = selectedValues.includes(item._id)
+                        ? selectedValues.filter((value) => value !== item._id)
+                        : [...selectedValues, item._id]
+                      onSelectionChange(newValues)
+                    }}
+                  >
+                    <Check
+                      className={cn("mr-2 h-4 w-4", selectedValues.includes(item._id) ? "opacity-100" : "opacity-0")}
+                    />
+                    {getDisplayName(item)}
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+
+      {selectedValues.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {selectedValues.map((valueId) => {
+            const item = data.find((d) => d._id === valueId)
+            if (!item) return null
+            return (
+              <Badge key={valueId} variant="secondary" className="text-xs">
+                {getDisplayName(item)}
+                <button
+                  type="button"
+                  className="ml-1 hover:bg-secondary-foreground/20 rounded-full"
+                  onClick={() => {
+                    const newValues = selectedValues.filter((v) => v !== valueId)
+                    onSelectionChange(newValues)
+                  }}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Offer form component
+const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onDelete }) => {
+  const [typeData, setTypeData] = useState({
+    courses: [],
+    categories: [],
+    instructors: [],
+  })
+  const [loadingTypeData, setLoadingTypeData] = useState(false)
+  const axios = useAxiosPrivate()
+
+  const watchedType = form.watch("type")
+  const watchedApplicableTo = form.watch("applicableTo") || []
+
+  // Fetch data when type is selected
+  const fetchTypeData = async (type) => {
+    if (!["course", "category", "instructor"].includes(type)) return
+    if (typeData[`${type}s`].length > 0) return // Already loaded
+
+    setLoadingTypeData(true)
+    try {
+      let endpoint = ""
+      switch (type) {
+        case "course":
+          endpoint = "/courses"
+          break
+        case "category":
+          endpoint = "/category"
+          break
+        case "instructor":
+          endpoint = "/admin/users?role=instructors"
+          break
+      }
+
+      const response = await axios.get(endpoint)
+      if (response.data.success) {
+        const dataKey = type === "instructor" ? "users" : `${type}s`
+        setTypeData((prev) => ({
+          ...prev,
+          [`${type}s`]: response.data[dataKey] || [],
+        }))
+      }
+    } catch (error) {
+      toast.error(`Failed to fetch ${type} data`)
+    } finally {
+      setLoadingTypeData(false)
+    }
+  }
+
+  // Reset applicableTo when type changes
+  useEffect(() => {
+    if (watchedType) {
+      form.setValue("applicableTo", [])
+      fetchTypeData(watchedType)
+    }
+  }, [watchedType])
+
+  const renderApplicableToField = () => {
+    if (!["course", "category", "instructor"].includes(watchedType)) return null
+
+    return (
+      <div className="space-y-2">
+        <Label>Select {watchedType}s *</Label>
+        <MultiSelectCombobox
+          data={typeData[`${watchedType}s`]}
+          loading={loadingTypeData}
+          selectedValues={watchedApplicableTo}
+          onSelectionChange={(values) => form.setValue("applicableTo", values)}
+          placeholder={`Select ${watchedType}s...`}
+          type={watchedType}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Offer Name *</Label>
+          <Input
+            placeholder="Enter offer name"
+            {...form.register("name")}
+            className={form.formState.errors.name ? "border-red-500" : ""}
+          />
+          {form.formState.errors.name && <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>}
+        </div>
+
+        <div className="space-y-2">
+          <Label>Offer Type *</Label>
+          <Controller
+            name="type"
+            control={form.control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select offer type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="global">Global Discount</SelectItem>
+                  <SelectItem value="course">Course Discount</SelectItem>
+                  <SelectItem value="category">Category Discount</SelectItem>
+                  <SelectItem value="instructor">Instructor Discount</SelectItem>
+                  <SelectItem value="first-time">First Time User</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+          {form.formState.errors.type && <p className="text-sm text-red-500">{form.formState.errors.type.message}</p>}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Description *</Label>
+        <Textarea
+          placeholder="Enter offer description"
+          rows={3}
+          {...form.register("description")}
+          className={form.formState.errors.description ? "border-red-500" : ""}
+        />
+        {form.formState.errors.description && (
+          <p className="text-sm text-red-500">{form.formState.errors.description.message}</p>
+        )}
+      </div>
+
+      {renderApplicableToField()}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Discount Type *</Label>
+          <Controller
+            name="discountType"
+            control={form.control}
+            render={({ field }) => (
+              <Select onValueChange={field.onChange} value={field.value}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select discount type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="percentage">Percentage (%)</SelectItem>
+                  <SelectItem value="flat">Flat (₹)</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label>Discount Value *</Label>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            placeholder="Enter discount value"
+            {...form.register("discountValue", { valueAsNumber: true })}
+            className={form.formState.errors.discountValue ? "border-red-500" : ""}
+          />
+          {form.formState.errors.discountValue && (
+            <p className="text-sm text-red-500">{form.formState.errors.discountValue.message}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <Label>Start Date *</Label>
+          <Input
+            type="date"
+            {...form.register("startDate")}
+            className={form.formState.errors.startDate ? "border-red-500" : ""}
+          />
+          {form.formState.errors.startDate && (
+            <p className="text-sm text-red-500">{form.formState.errors.startDate.message}</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>End Date *</Label>
+          <Input
+            type="date"
+            {...form.register("endDate")}
+            className={form.formState.errors.endDate ? "border-red-500" : ""}
+          />
+          {form.formState.errors.endDate && (
+            <p className="text-sm text-red-500">{form.formState.errors.endDate.message}</p>
+          )}
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <Label>Status *</Label>
+        <Controller
+          name="status"
+          control={form.control}
+          render={({ field }) => (
+            <Select onValueChange={field.onChange} value={field.value}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="upcoming">Upcoming</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="inactive">Inactive</SelectItem>
+                <SelectItem value="paused">Paused</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        />
+      </div>
+
+      <div className="flex gap-2 pt-4">
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={isSubmitting} className="flex-1">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              {isEdit ? "Saving..." : "Creating..."}
+            </>
+          ) : (
+            <>
+              {isEdit ? <Check className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+              {isEdit ? "Save Changes" : "Create Offer"}
+            </>
+          )}
+        </Button>
+        {isEdit && (
+          <Button type="button" variant="destructive" onClick={onDelete} disabled={isSubmitting}>
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </Button>
+        )}
+      </div>
+    </form>
+  )
+}
 
 const OfferManagementPage = () => {
   const [offers, setOffers] = useState([])
@@ -73,13 +376,21 @@ const OfferManagementPage = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
   const [selectedOffer, setSelectedOffer] = useState(null)
-  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+
+  // Alert dialogs
+  const [alertConfig, setAlertConfig] = useState({
+    open: false,
+    title: "",
+    description: "",
+    onConfirm: null,
+    confirmText: "Confirm",
+    confirmVariant: "default",
+  })
 
   const axios = useAxiosPrivate()
 
-  // Form setup for create offer
+  // Form setup
   const createForm = useForm({
     resolver: zodResolver(offerSchema),
     defaultValues: {
@@ -88,13 +399,13 @@ const OfferManagementPage = () => {
       type: "",
       discountType: "percentage",
       discountValue: 0,
-      startDate: new Date(),
-      endDate: new Date(),
+      applicableTo: [],
+      startDate: format(new Date(), "yyyy-MM-dd"),
+      endDate: format(new Date(), "yyyy-MM-dd"),
       status: "upcoming",
     },
   })
 
-  // Form setup for edit offer
   const editForm = useForm({
     resolver: zodResolver(offerSchema),
     defaultValues: {
@@ -103,29 +414,14 @@ const OfferManagementPage = () => {
       type: "",
       discountType: "percentage",
       discountValue: 0,
-      startDate: new Date(),
-      endDate: new Date(),
+      applicableTo: [],
+      startDate: "",
+      endDate: "",
       status: "upcoming",
     },
   })
 
-  // Watch form changes to detect unsaved changes
-  const watchedCreateFields = createForm.watch()
-  const watchedEditFields = editForm.watch()
-
-  useEffect(() => {
-    const hasCreateChanges = Object.values(watchedCreateFields).some((value) => {
-      if (value instanceof Date) return true
-      return value !== "" && value !== 0
-    })
-    const hasEditChanges = Object.values(watchedEditFields).some((value) => {
-      if (value instanceof Date) return true
-      return value !== "" && value !== 0
-    })
-    setHasUnsavedChanges(hasCreateChanges || hasEditChanges)
-  }, [watchedCreateFields, watchedEditFields])
-
-  // Define columns for DataTable
+  // Table columns
   const columns = useMemo(
     () => [
       {
@@ -206,7 +502,6 @@ const OfferManagementPage = () => {
       try {
         setLoading(true)
         const response = await axios.get("/offers")
-
         if (response.data.success) {
           setOffers(response.data.offers || [])
         } else {
@@ -218,11 +513,10 @@ const OfferManagementPage = () => {
         setLoading(false)
       }
     }
-
     fetchOffers()
   }, [axios])
 
-  // Filter offers based on search
+  // Filter offers
   const filteredOffers = useMemo(() => {
     if (!searchText) return offers
     return offers.filter(
@@ -233,16 +527,30 @@ const OfferManagementPage = () => {
     )
   }, [offers, searchText])
 
-  // Format date for input
-  const formatDateForInput = (dateString) => {
-    try {
-      return format(new Date(dateString), "yyyy-MM-dd")
-    } catch {
-      return ""
-    }
+  // Utility functions
+  const showAlert = (config) => {
+    setAlertConfig({ ...config, open: true })
   }
 
-  // Handle row click - open manage dialog
+  const closeAlert = () => {
+    setAlertConfig((prev) => ({ ...prev, open: false }))
+  }
+
+  const formatApplicableTo = (data, type) => {
+    if (!data.applicableTo?.length) return []
+
+    let applicableToArray = []
+    if (type === "course") {
+      applicableToArray = data.applicableTo.map((id) => ({ refModel: "Course", refId: id }))
+    } else if (type === "category") {
+      applicableToArray = data.applicableTo.map((id) => ({ refModel: "Category", refId: id }))
+    } else if (type === "instructor") {
+      applicableToArray = data.applicableTo.map((id) => ({ refModel: "Instructor", refId: id }))
+    }
+    return applicableToArray
+  }
+
+  // Event handlers
   const handleRowClick = (row) => {
     const offer = offers.find((o) => o._id === row.original._id)
     if (offer) {
@@ -253,22 +561,23 @@ const OfferManagementPage = () => {
         type: offer.type,
         discountType: offer.discountType,
         discountValue: offer.discountValue,
-        startDate: formatDateForInput(offer.startDate),
-        endDate: formatDateForInput(offer.endDate),
+        applicableTo: offer.applicableTo?.map((item) => item.refId) || [],
+        startDate: format(new Date(offer.startDate), "yyyy-MM-dd"),
+        endDate: format(new Date(offer.endDate), "yyyy-MM-dd"),
         status: offer.status,
       })
       setIsManageDialogOpen(true)
     }
   }
 
-  // Handle create offer
   const handleCreateOffer = async (data) => {
     try {
       setIsSubmitting(true)
       const response = await axios.post("/offers", {
         ...data,
-        startDate: data.startDate.toISOString(),
-        endDate: data.endDate.toISOString(),
+        applicableTo: formatApplicableTo(data, data.type),
+        startDate: new Date(data.startDate).toISOString(),
+        endDate: new Date(data.endDate).toISOString(),
       })
 
       if (response.data.success) {
@@ -276,7 +585,6 @@ const OfferManagementPage = () => {
         toast.success("Offer created successfully")
         setIsCreateDialogOpen(false)
         createForm.reset()
-        setHasUnsavedChanges(false)
       } else {
         toast.error(response.data.message || "Failed to create offer")
       }
@@ -287,7 +595,6 @@ const OfferManagementPage = () => {
     }
   }
 
-  // Handle edit offer
   const handleEditOffer = async (data) => {
     if (!selectedOffer) return
 
@@ -295,6 +602,7 @@ const OfferManagementPage = () => {
       setIsSubmitting(true)
       const response = await axios.patch(`/offers/${selectedOffer._id}`, {
         ...data,
+        applicableTo: formatApplicableTo(data, data.type),
         startDate: new Date(data.startDate).toISOString(),
         endDate: new Date(data.endDate).toISOString(),
       })
@@ -316,7 +624,6 @@ const OfferManagementPage = () => {
     }
   }
 
-  // Handle delete offer
   const handleDeleteOffer = async () => {
     if (!selectedOffer) return
 
@@ -329,6 +636,7 @@ const OfferManagementPage = () => {
         toast.success("Offer deleted successfully")
         setIsManageDialogOpen(false)
         setSelectedOffer(null)
+        closeAlert()
       } else {
         toast.error(response.data.message || "Failed to delete offer")
       }
@@ -339,24 +647,44 @@ const OfferManagementPage = () => {
     }
   }
 
-  // Handle dialog close with unsaved changes
-  const handleCreateDialogClose = () => {
-    if (hasUnsavedChanges) {
-      setIsAlertDialogOpen(true)
+  const handleCreateCancel = () => {
+    const hasChanges = Object.values(createForm.getValues()).some((value) => {
+      if (typeof value === "string") return value !== ""
+      if (typeof value === "number") return value !== 0
+      if (Array.isArray(value)) return value.length > 0
+      return false
+    })
+
+    if (hasChanges) {
+      showAlert({
+        title: "Unsaved Changes",
+        description: "You have unsaved changes. Are you sure you want to close without saving?",
+        onConfirm: () => {
+          setIsCreateDialogOpen(false)
+          createForm.reset()
+          closeAlert()
+        },
+        confirmText: "Discard Changes",
+        confirmVariant: "destructive",
+      })
     } else {
       setIsCreateDialogOpen(false)
     }
   }
 
-  // Confirm close without saving
-  const handleConfirmClose = () => {
-    setIsCreateDialogOpen(false)
+  const handleManageCancel = () => {
     setIsManageDialogOpen(false)
-    setIsAlertDialogOpen(false)
     setSelectedOffer(null)
-    createForm.reset()
-    editForm.reset()
-    setHasUnsavedChanges(false)
+  }
+
+  const handleDeleteClick = () => {
+    showAlert({
+      title: "Delete Offer",
+      description: `Are you sure you want to delete "${selectedOffer?.name}"? This action cannot be undone.`,
+      onConfirm: handleDeleteOffer,
+      confirmText: "Delete Offer",
+      confirmVariant: "destructive",
+    })
   }
 
   return (
@@ -381,8 +709,8 @@ const OfferManagementPage = () => {
             type="text"
             value={searchText}
             onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search offers by name, description, or type..."
-            className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+            placeholder="Search offers..."
+            className="pl-10 pr-10"
           />
           {searchText && (
             <button onClick={() => setSearchText("")} className="absolute inset-y-0 right-0 pr-3 flex items-center">
@@ -402,458 +730,63 @@ const OfferManagementPage = () => {
       />
 
       {/* Create Offer Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={handleCreateDialogClose}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={() => { }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Offer</DialogTitle>
             <DialogDescription>Create a new promotional offer for your platform</DialogDescription>
           </DialogHeader>
-
-          <form onSubmit={createForm.handleSubmit(handleCreateOffer)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Offer Name */}
-              <div className="space-y-2">
-                <Label htmlFor="create-name">Offer Name *</Label>
-                <Input
-                  id="create-name"
-                  placeholder="Enter offer name"
-                  {...createForm.register("name")}
-                  className={createForm.formState.errors.name ? "border-red-500" : ""}
-                />
-                {createForm.formState.errors.name && (
-                  <p className="text-sm text-red-500">{createForm.formState.errors.name.message}</p>
-                )}
-              </div>
-
-              {/* Offer Type */}
-              <div className="space-y-2">
-                <Label htmlFor="create-type">Offer Type *</Label>
-                <Controller
-                  name="type"
-                  control={createForm.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select offer type" />
-                      </SelectTrigger>
-                      <SelectContent className="[&_div]:cursor-pointer">
-                        <SelectItem value="global">Global Discount</SelectItem>
-                        <SelectItem value="course">Course Discount</SelectItem>
-                        <SelectItem value="category">Category Discount</SelectItem>
-                        <SelectItem value="instructor">Instructor Discount</SelectItem>
-                        <SelectItem value="first-time">First Time User</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {createForm.formState.errors.type && (
-                  <p className="text-sm text-red-500">{createForm.formState.errors.type.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <Label htmlFor="create-description">Description *</Label>
-              <Textarea
-                id="create-description"
-                placeholder="Enter offer description"
-                rows={3}
-                {...createForm.register("description")}
-                className={createForm.formState.errors.description ? "border-red-500" : ""}
-              />
-              {createForm.formState.errors.description && (
-                <p className="text-sm text-red-500">{createForm.formState.errors.description.message}</p>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Discount Type */}
-              <div className="space-y-2">
-                <Label htmlFor="create-discountType">Discount Type *</Label>
-                <Controller
-                  name="discountType"
-                  control={createForm.control}
-                  render={({ field }) => (
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select discount type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">Percentage (%)</SelectItem>
-                        <SelectItem value="flat">Flat (₹)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {createForm.formState.errors.discountType && (
-                  <p className="text-sm text-red-500">{createForm.formState.errors.discountType.message}</p>
-                )}
-              </div>
-
-              {/* Discount Value */}
-              <div className="space-y-2">
-                <Label htmlFor="create-discountValue">Discount Value *</Label>
-                <Input
-                  id="create-discountValue"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  placeholder="Enter discount value"
-                  {...createForm.register("discountValue", { valueAsNumber: true })}
-                  className={createForm.formState.errors.discountValue ? "border-red-500" : ""}
-                />
-                {createForm.formState.errors.discountValue && (
-                  <p className="text-sm text-red-500">{createForm.formState.errors.discountValue.message}</p>
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Start Date */}
-              <div className="space-y-2">
-                <Label>Start Date *</Label>
-                <Controller
-                  name="startDate"
-                  control={createForm.control}
-                  render={({ field }) => (
-                    <Input
-                      type="date"
-                      value={field.value instanceof Date ? format(field.value, "yyyy-MM-dd") : field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className={createForm.formState.errors.startDate ? "border-red-500" : ""}
-                    />
-                  )}
-                />
-                {createForm.formState.errors.startDate && (
-                  <p className="text-sm text-red-500">{createForm.formState.errors.startDate.message}</p>
-                )}
-              </div>
-
-              {/* End Date */}
-              <div className="space-y-2">
-                <Label>End Date *</Label>
-                <Controller
-                  name="endDate"
-                  control={createForm.control}
-                  render={({ field }) => (
-                    <Input
-                      type="date"
-                      value={field.value instanceof Date ? format(field.value, "yyyy-MM-dd") : field.value}
-                      onChange={(e) => field.onChange(e.target.value)}
-                      className={createForm.formState.errors.endDate ? "border-red-500" : ""}
-                    />
-                  )}
-                />
-                {createForm.formState.errors.endDate && (
-                  <p className="text-sm text-red-500">{createForm.formState.errors.endDate.message}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Status */}
-            <div className="space-y-2">
-              <Label htmlFor="create-status">Status *</Label>
-              <Controller
-                name="status"
-                control={createForm.control}
-                render={({ field }) => (
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="upcoming">Upcoming</SelectItem>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="inactive">Inactive</SelectItem>
-                      <SelectItem value="paused">Paused</SelectItem>
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-              {createForm.formState.errors.status && (
-                <p className="text-sm text-red-500">{createForm.formState.errors.status.message}</p>
-              )}
-            </div>
-
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCreateDialogClose} disabled={isSubmitting}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating...
-                  </>
-                ) : (
-                  <>
-                    <Plus className="mr-2 h-4 w-4" />
-                    Create Offer
-                  </>
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
+          <OfferForm
+            form={createForm}
+            onSubmit={handleCreateOffer}
+            isSubmitting={isSubmitting}
+            onCancel={handleCreateCancel}
+          />
         </DialogContent>
       </Dialog>
 
-      {/* Manage Offer Dialog (Edit/Delete) */}
-      <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+      {/* Manage Offer Dialog */}
+      <Dialog open={isManageDialogOpen} onOpenChange={() => { }}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Offer</DialogTitle>
-            <DialogDescription>Edit offer details or delete the offer.</DialogDescription>
+            <DialogDescription>Edit offer details or delete the offer</DialogDescription>
           </DialogHeader>
-
           {selectedOffer && (
-            <div className="space-y-6">
-              {/* Edit Form */}
-              <form onSubmit={editForm.handleSubmit(handleEditOffer)}>
-                <div className="grid gap-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-name">Offer Name</Label>
-                      <Input
-                        id="edit-name"
-                        placeholder="Enter offer name"
-                        {...editForm.register("name")}
-                        className={editForm.formState.errors.name ? "border-red-500" : ""}
-                      />
-                      {editForm.formState.errors.name && (
-                        <p className="text-sm text-red-500">{editForm.formState.errors.name.message}</p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-type">Offer Type</Label>
-                      <Controller
-                        name="type"
-                        control={editForm.control}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select offer type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="global">Global Discount</SelectItem>
-                              <SelectItem value="course">Course Discount</SelectItem>
-                              <SelectItem value="category">Category Discount</SelectItem>
-                              <SelectItem value="instructor">Instructor Discount</SelectItem>
-                              <SelectItem value="first-time">First Time User</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {editForm.formState.errors.type && (
-                        <p className="text-sm text-red-500">{editForm.formState.errors.type.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-description">Description</Label>
-                    <Textarea
-                      id="edit-description"
-                      placeholder="Enter offer description"
-                      rows={3}
-                      {...editForm.register("description")}
-                      className={editForm.formState.errors.description ? "border-red-500" : ""}
-                    />
-                    {editForm.formState.errors.description && (
-                      <p className="text-sm text-red-500">{editForm.formState.errors.description.message}</p>
-                    )}
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-discountType">Discount Type</Label>
-                      <Controller
-                        name="discountType"
-                        control={editForm.control}
-                        render={({ field }) => (
-                          <Select onValueChange={field.onChange} value={field.value}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Select discount type" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="percentage">Percentage (%)</SelectItem>
-                              <SelectItem value="flat">Flat (₹)</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        )}
-                      />
-                      {editForm.formState.errors.discountType && (
-                        <p className="text-sm text-red-500">{editForm.formState.errors.discountType.message}</p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-discountValue">Discount Value</Label>
-                      <Input
-                        id="edit-discountValue"
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="Enter discount value"
-                        {...editForm.register("discountValue", { valueAsNumber: true })}
-                        className={editForm.formState.errors.discountValue ? "border-red-500" : ""}
-                      />
-                      {editForm.formState.errors.discountValue && (
-                        <p className="text-sm text-red-500">{editForm.formState.errors.discountValue.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-startDate">Start Date</Label>
-                      <Input
-                        id="edit-startDate"
-                        type="date"
-                        {...editForm.register("startDate")}
-                        className={editForm.formState.errors.startDate ? "border-red-500" : ""}
-                      />
-                      {editForm.formState.errors.startDate && (
-                        <p className="text-sm text-red-500">{editForm.formState.errors.startDate.message}</p>
-                      )}
-                    </div>
-
-                    <div className="grid gap-2">
-                      <Label htmlFor="edit-endDate">End Date</Label>
-                      <Input
-                        id="edit-endDate"
-                        type="date"
-                        {...editForm.register("endDate")}
-                        className={editForm.formState.errors.endDate ? "border-red-500" : ""}
-                      />
-                      {editForm.formState.errors.endDate && (
-                        <p className="text-sm text-red-500">{editForm.formState.errors.endDate.message}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="grid gap-2">
-                    <Label htmlFor="edit-status">Status</Label>
-                    <Controller
-                      name="status"
-                      control={editForm.control}
-                      render={({ field }) => (
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select status" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="upcoming">Upcoming</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                            <SelectItem value="paused">Paused</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    {editForm.formState.errors.status && (
-                      <p className="text-sm text-red-500">{editForm.formState.errors.status.message}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 mt-6">
-                  <Button type="submit" disabled={isSubmitting} className="flex-1">
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Check className="mr-2 h-4 w-4" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </form>
-
-              <Separator />
-
-              {/* Delete Section */}
-              <div className="space-y-4">
-                <div>
-                  <h4 className="text-sm font-medium text-red-600">Danger Zone</h4>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Permanently delete this offer. This action cannot be undone.
-                  </p>
-                </div>
-
-                <div className="bg-red-50 p-4 rounded-md border border-red-200">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-red-900">{selectedOffer.name}</p>
-                      <p className="text-sm text-red-700 mt-1">
-                        {selectedOffer.discountType === "percentage"
-                          ? `${selectedOffer.discountValue}% discount`
-                          : `₹${selectedOffer.discountValue} discount`}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className="text-red-600 border-red-600">
-                      {selectedOffer.type}
-                    </Badge>
-                  </div>
-                </div>
-
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={handleDeleteOffer}
-                  disabled={isSubmitting}
-                  className="w-full"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Deleting...
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete Offer
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
+            <OfferForm
+              form={editForm}
+              onSubmit={handleEditOffer}
+              isSubmitting={isSubmitting}
+              isEdit={true}
+              onCancel={handleManageCancel}
+              onDelete={handleDeleteClick}
+            />
           )}
-
-          <DialogFooter className="mt-6">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIsManageDialogOpen(false)
-                setSelectedOffer(null)
-              }}
-              disabled={isSubmitting}
-            >
-              Close
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Unsaved Changes Alert Dialog */}
-      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+      {/* Universal Alert Dialog */}
+      <AlertDialog open={alertConfig.open} onOpenChange={closeAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Unsaved Changes</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved changes. Are you sure you want to close without saving? All changes will be lost.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{alertConfig.title}</AlertDialogTitle>
+            <AlertDialogDescription>{alertConfig.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Continue Editing</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmClose} className="bg-red-600 hover:bg-red-700">
-              Discard Changes
+            <AlertDialogCancel disabled={isSubmitting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={alertConfig.onConfirm}
+              disabled={isSubmitting}
+              className={alertConfig.confirmVariant === "destructive" ? "bg-red-600 hover:bg-red-700" : ""}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                alertConfig.confirmText
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

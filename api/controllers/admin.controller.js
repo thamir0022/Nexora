@@ -32,7 +32,7 @@ export const getAllUsers = async (req, res, next) => {
     }
 
     const users = await User.find(filter)
-      .select("-password -__v")
+      .select("-password -__v -wallet")
       .sort({ createdAt: order });
 
     if (!users) throw new AppError("No users found", 404);

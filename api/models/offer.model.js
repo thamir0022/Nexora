@@ -12,11 +12,23 @@ const offerSchema = new mongoose.Schema(
     discountType: {
       type: String,
       enum: ["percentage", "flat"],
-      default: "percentage",
+      default: "percentage",  
     },
     discountValue: { type: Number, required: true }, // 50 for 50% or $50
     applicableTo: {
-      type: [mongoose.Schema.Types.ObjectId],
+      type: [
+        {
+          refModel: {
+            type: String,
+            enum: ["Course", "Category", "Instructor"],
+            required: true,
+          },
+          refId: {
+            type: mongoose.Schema.Types.ObjectId,
+            required: true,
+          },
+        },
+      ],
       default: [],
     },
     startDate: { type: Date, required: true },

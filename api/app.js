@@ -8,25 +8,37 @@ import courseRoutes from "./routes/course.routes.js";
 import categoryRoutes from "./routes/category.routes.js";
 import offerRoutes from "./routes/offer.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import notificationRoutes from "./routes/notification.route.js";
+import reviewRoutes from "./routes/review.routes.js";
 import { connectMongodb } from "./config/mongodb.js";
 import { globalErrorHandler } from "./middlewares/globalmiddleware.js";
 import { notFoundHandler } from "./middlewares/notFoundHandler.js";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import { initSocketIo } from "./config/socketio.js";
+import http from "http";
+import { CLIENT_BASE_URL } from "./utils/env.js";
 
 const app = express();
 
-app.listen(PORT, () => {
+const server = http.createServer(app);
+
+// Initialize socket.io
+initSocketIo(server);
+
+server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}\nhttp://localhost:${PORT}`);
   connectMongodb();
 });
 
 app.use(
   cors({
-    origin: "http://localhost:5173", // Vite frontend URL
+    origin: CLIENT_BASE_URL, // frontend URL
     credentials: true, // if you're using cookies or authorization headers
   })
 );
+
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
@@ -38,6 +50,8 @@ app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/offers", offerRoutes);
 app.use("/api/v1/payment", paymentRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
 app.all("/*splat", notFoundHandler);
 
 app.use(globalErrorHandler);

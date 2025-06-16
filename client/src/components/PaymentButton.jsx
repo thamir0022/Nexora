@@ -1,7 +1,5 @@
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import React from "react";
-import { useRazorpay } from "react-razorpay";
-import { Skeleton } from "./ui/skeleton";
 import { Button } from "./ui/button";
 import { CiCreditCard1 } from "react-icons/ci";
 import { useNavigate } from "react-router-dom";
@@ -14,10 +12,9 @@ import paymentSuccess from "@/assets/images/payment-success.svg";
 import paymentFailed from "@/assets/images/payment-failed.svg";
 import { cn } from "@/lib/utils";
 
-const PaymentButton = ({ isCart = false, amount, couponCode, description, course, text = "Buy Now" }) => {
+const PaymentButton = ({ isCart = false, amount, couponCode, description, course, icon, text = "Buy Now", className }) => {
   const [open, setOpen] = useState(false);
   const [verify, setVerify] = useState(null);
-  const { error, isLoading, Razorpay } = useRazorpay();
   const { user } = useAuth();
   const axios = useAxiosPrivate();
   const navigate = useNavigate();
@@ -80,26 +77,25 @@ const PaymentButton = ({ isCart = false, amount, couponCode, description, course
       razorpayInstance.open();
     } catch (err) {
       console.error("Payment error:", err);
-      alert("Something went wrong during payment");
+      toast.error("Something went wrong during payment");
     }
   };
 
   return (
     <>
-      {isLoading ? <Skeleton className="w-full h-12 rounded-md bg-gradient-to-r from-blue-100 to-blue-200"></Skeleton> :
+      {/* {isLoading ? <Skeleton className="w-full h-12 rounded-md bg-gradient-to-r from-blue-100 to-blue-200"></Skeleton> : */}
         <Button
           onClick={handlePayment}
-          className="inline-flex gap-0 w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+          className={cn("inline-flex gap-0 text-lg font-semibold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/80 hover:to-primary/90", className)}
         >
-          <CiCreditCard1 className="mr-2 size-6!" />
+          {icon && <CiCreditCard1 className="mr-2 size-6!" />}
           {text}
         </Button>
-      }
+      {/* } */}
       <AlertDialog open={open} onOpenChange={setOpen}>
         <AlertDialogContent className="text-center">
           <AlertDialogHeader className="flex flex-col items-center">
-            <div className=""
-            >
+            <>
               {verify === "pending" && (
                 <div className="bg-blue-100 rounded-full p-4">
                   <img src={processingPayment} alt="Processing" className="w-44 h-32" />
@@ -115,7 +111,7 @@ const PaymentButton = ({ isCart = false, amount, couponCode, description, course
                   <img src={paymentFailed} alt="Failed" className="w-44 h-32" />
                 </div>
               )}
-            </div>
+            </>
 
             <AlertDialogTitle className={cn("text-2xl font-bold mb-2", verify === "pending" && "animate-pulse")}>
               {verify === "pending"

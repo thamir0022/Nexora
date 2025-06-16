@@ -12,6 +12,7 @@ import CartButton from "./CartSheetButton";
 import AccountDropDown from "./AccountDropDown";
 import { CiHeart, CiSearch } from "react-icons/ci";
 import WishlistButton from "./WishlistButton";
+import Notifications from "./Notifications";
 
 const Header = () => {
   const [searchText, setSearchText] = useState("");
@@ -197,6 +198,7 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-2">
           {user ? (
             <div className="flex items-center gap-5">
+              <Notifications/>
               {user.role === "student" && (
                 <>
                   <WishlistButton />

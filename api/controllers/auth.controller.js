@@ -278,6 +278,9 @@ export const googleAuth = async (req, res, next) => {
       await user.save();
     }
 
+    if (user.status !== "active") throw new AppError(`Your account is ${user.status}`, 403, `account-${user.status}`);
+    
+
     // Generate tokens
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user._id });

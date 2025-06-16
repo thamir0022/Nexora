@@ -196,7 +196,7 @@ const CoursePreviewPage = ({ course }) => {
 
                 {/* Action Buttons */}
                 <div className="space-y-3">
-                  <PaymentButton couponCode={couponCode} amount={priceData.offerPrice} description="Course Payment" course={course._id} />
+                  <PaymentButton className="w-full py-5" couponCode={couponCode} amount={priceData.offerPrice} description="Course Payment" icon course={course._id} />
 
                   <div className="grid grid-cols-2 gap-4">
                     <Button

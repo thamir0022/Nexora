@@ -1,5 +1,7 @@
+import { getIo } from "../config/socketio.js";
 import Course from "../models/course.model.js";
 import Enrollment from "../models/enrollment.model.js";
+import Notification from "../models/notification.model.js";
 import { AppError } from "./apperror.js";
 
 export const getSort = (sortBy) => {
@@ -33,4 +35,25 @@ export const hasAccess = async (courseId, userId, userRole) => {
   // Grant access if the user has purchased the course
   const isEnrolled = await Enrollment.exists({ user: userId, course: courseId });
   return !!isEnrolled;
+};
+
+
+export const generateNotification = async (sender, receiver, message, type) => {
+  const notification = new Notification({
+    sender,
+    receiver,
+    message,
+    type,
+    isRead: false
+  });
+
+  await notification.save();
+
+  // Emit to user's personal socket room
+  getIo().to(receiver).emit('new_notification', {
+    _id: notification._id,
+    message,
+    type,
+    createdAt: notification.createdAt
+  });
 };

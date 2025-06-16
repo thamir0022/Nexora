@@ -1,49 +1,86 @@
 import HeroCarousel from "@/components/HeroCarousel";
 import ThumbnailSkeleton from "@/components/skeltons/Thumbnail";
 import Thumbnail from "@/components/Thumbnail";
-import { useAuth } from "@/hooks/useAuth";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const HomePage = () => {
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState({ allCourses: [], userEnrolledCourses: [] });
   const [loading, setloading] = useState(false);
-  const { user } = useAuth();
-  const navigate = useNavigate();
   const axios = useAxiosPrivate();
+  const { cart, setCart, setOpenSheet } = useCart();
+  const { wishlist, setWishlist } = useWishlist();
+  const { user } = useAuth();
+  const [loadingCourseId, setLoadingCourseId] = useState(null);
+  const [wishlistProcessingId, setWishlistProcessingId] = useState(null);
 
   useEffect(() => {
     const fetchCourses = async () => {
-      setloading(true);
       try {
-        const { data } = await axios.get("/courses");
-
-        if (!data.success) {
-          console.error('Failed to fetch courses:', data.message);
-          toast.error('Failed to load courses. Please try again later.');
-          return;
-        }
-
-        // Ensure we only show published courses
-        const publishedCourses = data.courses.filter(course => course.status === 'published');
-        setCourses(publishedCourses);
+        const [allCoursesRes, userEnrolledCoursesRes] = await Promise.all([
+          axios.get("/courses"),
+          axios.get(`/users/${user._id}/courses`)
+        ]);
+        // You can merge or use individually if needed
+        setCourses({
+          allCourses: allCoursesRes.data.courses,
+          userEnrolledCourses: userEnrolledCoursesRes.data.courses,
+        });
       } catch (error) {
-        console.error('Error fetching courses:', error);
-        const errorMessage = error.response?.data?.message || 'Failed to load courses';
-        toast.error(errorMessage);
-      } finally {
-        setloading(false);
+        console.error("Failed to fetch courses:", error);
       }
     };
+
     fetchCourses();
-  }, [axios]);
+  }, [axios, user]);
+
+  const handleAddToCart = async (courseId) => {
+    setLoadingCourseId(courseId);
+    try {
+      const { data } = await axios.post(`/users/${user._id}/cart/${courseId}`);
+      setCart(data.cart);
+      toast.success("Course added to cart");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to add to cart");
+    } finally {
+      setLoadingCourseId(null);
+    }
+  };
+
+  const handleAddToWishlist = async (courseId) => {
+    setWishlistProcessingId(courseId);
+    try {
+      const { data } = await axios.post(`/users/${user._id}/wishlist/${courseId}`);
+      setWishlist(data.wishlist);
+      toast.success("Course added to wishlist");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to add to wishlist");
+    } finally {
+      setWishlistProcessingId(null);
+    }
+  };
+
+  const handleRemoveFromWishlist = async (courseId) => {
+    setWishlistProcessingId(courseId);
+    try {
+      await axios.delete(`/users/${user._id}/wishlist/${courseId}`);
+      setWishlist((prev) => prev.filter((item) => item._id !== courseId));
+      toast.success("Removed from wishlist");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to remove from wishlist");
+    } finally {
+      setWishlistProcessingId(null);
+    }
+  };
 
   return (
     <section className="container mx-auto">
       {/* Hero Carousel */}
-        <HeroCarousel />
+      <HeroCarousel />
 
       <h2 className="text-center text-2xl font-semibold my-4">
         Explore Top-Rated Programs
@@ -54,7 +91,7 @@ const HomePage = () => {
           [...Array(8)].map((_, i) => (
             <ThumbnailSkeleton key={i} />
           ))
-        ) : courses?.length > 0 ? courses.map(
+        ) : courses.allCourses.length > 0 ? courses.allCourses.map(
           ({
             _id,
             title,
@@ -75,6 +112,16 @@ const HomePage = () => {
               category={category}
               instructor={instructor}
               price={price}
+              role={user.role}
+              isEnrolled={courses.userEnrolledCourses.some((item) => item.course === _id)}
+              isInCart={cart.some((item) => item._id === _id)}
+              isInWishlist={wishlist.some((item) => item._id === _id)}
+              addingToCart={loadingCourseId === _id}
+              modifyingWishlist={wishlistProcessingId === _id}
+              onAddToCart={handleAddToCart}
+              onAddToWishlist={handleAddToWishlist}
+              onRemoveFromWishlist={handleRemoveFromWishlist}
+              openCart={() => setOpenSheet(true)}
             />
           )
         ) : (
