@@ -1,4 +1,4 @@
-import { Schema, model } from "mongoose";
+import { Schema, Types, model } from "mongoose";
 
 const UserSchema = new Schema(
   {
@@ -34,26 +34,6 @@ const UserSchema = new Schema(
     joinDate: {
       type: Date,
     },
-    wallet: {
-      balance: {
-        type: Number,
-        default: 0,
-      },
-      history: [
-        {
-          type: Schema.Types.ObjectId,
-          ref: "WalletTransaction",
-        },
-      ],
-    },
-    usedCoupons: [
-      {
-        code: String,
-        usedCount: Number,
-        usedAt: Date,
-      },
-    ],
-
     // Instructor-only fields
     bio: {
       type: String,
@@ -65,7 +45,6 @@ const UserSchema = new Schema(
         ref: "Course",
       },
     ],
-
     emailVerified: {
       type: Boolean,
       default: false,
@@ -82,6 +61,19 @@ const UserSchema = new Schema(
       type: Boolean,
       default: false,
       index: true,
+    },
+    availableCoupons: [{
+      type: Types.ObjectId,
+      ref: "Coupon",
+    }],
+    usedCoupons: {
+      type: [
+        {
+          code: { type: String, required: true },
+          usedAt: { type: Date, default: Date.now },
+          usedCount: { type: Number, default: 1 },
+        }
+      ],
     },
     resetPasswordToken: {
       type: String,
@@ -115,14 +107,6 @@ UserSchema.methods.softDelete = function () {
   return this.save();
 };
 
-// Virtuals for easy access
-UserSchema.virtual("isStudent").get(function () {
-  return this.role === "student";
-});
-
-UserSchema.virtual("isInstructor").get(function () {
-  return this.role === "instructor";
-});
 
 // Optional: Clean up unused fields based on role (on save)
 UserSchema.pre("save", function (next) {

@@ -14,6 +14,8 @@ import SingleUserPage from "./pages/dashboard/SingleUserPage";
 import InstructorSingleCoursePage from "./pages/courses/instructor/CourseDetailsPage";
 import StudentSingleCoursePage from "./pages/courses/student/single-course-page/index";
 import MainLayout from "./layouts/MainLayout";
+import CertificatePage from "./pages/CertificatePage";
+import CoursesPage from "./pages/AllCourses";
 
 const App = () => {
   return (
@@ -21,6 +23,8 @@ const App = () => {
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="/courses" element={<CoursesPage />} />
+          <Route path="/certificate/:certificateId" element={<CertificatePage />} />
         </Route>
 
         {/* Auth Pages */}

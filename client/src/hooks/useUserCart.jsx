@@ -30,6 +30,7 @@ export const useUserCart = () => {
     fetchCart();
   }, []);
 
+
   useEffect(() => {
     const calculateTotalPrice = () => {
       const total = cart.reduce((acc, item) => {
@@ -46,7 +47,7 @@ export const useUserCart = () => {
     try {
       const { data } = await axios.post(`/users/${user._id}/cart/${courseId}`);
       if (data.success) {
-        setCart((prev) => [...prev, data.course]);
+        setCart((prev) => [...prev, data.cart]);
       }
     } catch (error) {
       const errorMessage =

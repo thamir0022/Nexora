@@ -14,6 +14,8 @@ export const OTPVerification = ({ formData, updateFormData, nextStep }) => {
   const [countdown, setCountdown] = useState(60)
   const [canResend, setCanResend] = useState(false)
 
+  console.log(formData)
+
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000)

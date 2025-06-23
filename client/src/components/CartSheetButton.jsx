@@ -1,20 +1,11 @@
 import { CiShoppingCart, CiTrash } from "react-icons/ci"
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "./ui/sheet"
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet"
 import emptyCartImage from "@/assets/images/empty-cart.svg"
 import { Button } from "./ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar"
 import { Separator } from "./ui/separator"
 import { Loader, Loader2, User } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { toast } from "sonner"
 import { useAuth } from "@/hooks/useAuth"
@@ -24,31 +15,83 @@ import { useWishlist } from "@/context/WishlistContext"
 import { useNavigate } from "react-router-dom"
 import { ScrollArea } from "./ui/scroll-area"
 import PaymentButton from "./PaymentButton"
-import CouponInput from "./CouponInput"
+import WalletToggle from "./wallet-toggle"
+import CouponManager from "./coupon-manager"
 import { Badge } from "./ui/badge"
 
 const CartButton = () => {
+  // Loading states
   const [isFetching, setIsFetching] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
-  const [totalPrice, setTotalPrice] = useState(0)
-  const [originalTotalPrice, setOriginalTotalPrice] = useState(0)
+
+  // Cart data
+  const [cartProductIds, setCartProductIds] = useState([])
+
+  // Discount states
   const [discountData, setDiscountData] = useState(null)
+
+  // Wallet states
+  const [walletBalance, setWalletBalance] = useState(0)
+  const [isWalletLoading, setIsWalletLoading] = useState(false)
+  const [isWalletApplied, setIsWalletApplied] = useState(false)
+
   const { user } = useAuth()
   const axios = useAxiosPrivate()
   const { cart, setCart, removeItem, openSheet, setOpenSheet } = useCart()
   const { setWishlist } = useWishlist()
   const navigate = useNavigate()
 
+  // Calculate amounts using useMemo for better performance
+  const amounts = useMemo(() => {
+    // Original cart total
+    const originalTotal = cart.reduce((acc, item) => acc + (item.price || 0), 0)
+
+    // After coupon discount
+    const afterCoupon = discountData ? discountData.finalPrice : originalTotal
+
+    // Wallet amount to be used
+    const walletAmount = isWalletApplied && walletBalance > 0 ? Math.min(walletBalance, afterCoupon) : 0
+
+    // Final amount to be charged
+    const finalAmount = Math.max(0, afterCoupon - walletAmount)
+
+    return {
+      originalTotal,
+      afterCoupon,
+      walletAmount,
+      finalAmount,
+      totalSavings: originalTotal - finalAmount,
+    }
+  }, [cart, discountData, isWalletApplied, walletBalance])
+
+  // Fetch wallet balance
+  const fetchWalletBalance = async () => {
+    setIsWalletLoading(true)
+    try {
+      const { data } = await axios.get("/wallet")
+      if (data.success) {
+        setWalletBalance(data.wallet.balance || 0)
+      }
+    } catch (error) {
+      console.error("Failed to fetch wallet balance:", error)
+      setWalletBalance(0)
+    } finally {
+      setIsWalletLoading(false)
+    }
+  }
+
+  // Fetch cart data
   useEffect(() => {
     const fetchCart = async () => {
+      if (!user?._id) return
+
       setIsFetching(true)
       try {
         const { data } = await axios.get(`/users/${user._id}/cart`)
-
         if (data.success) {
-          const cartItems = data.cart
-          setCart(cartItems)
+          setCart(data.cart)
+          setCartProductIds(data.cart.map((item) => item._id))
         }
       } catch (error) {
         const errorMessage = error.response?.data?.message || "Failed to fetch cart"
@@ -57,32 +100,20 @@ const CartButton = () => {
         setIsFetching(false)
       }
     }
+
     fetchCart()
-  }, [])
+    fetchWalletBalance()
+  }, [user?._id])
 
-  useEffect(() => {
-    const calculateTotalPrice = () => {
-      const total = cart.reduce((acc, item) => {
-        return acc + item.price
-      }, 0)
-      setTotalPrice(total)
-      setOriginalTotalPrice(total)
-    }
-
-    calculateTotalPrice()
-  }, [cart])
-
+  // Cart actions
   const removeFromCart = async (courseId) => {
-    setIsRemoving(true)
+    setIsRemoving(courseId)
     try {
       const res = await axios.delete(`/users/${user._id}/cart/${courseId}`)
-
       if (res.data.success) {
         removeItem(courseId)
         toast.success("Course removed from cart")
-        // Reset coupon when cart changes
-        setDiscountData(null)
-        setTotalPrice(originalTotalPrice)
+        resetDiscounts()
       } else {
         toast.error(res.data.message || "Failed to remove course from cart")
       }
@@ -101,9 +132,7 @@ const CartButton = () => {
         setWishlist(data.wishlist)
         setCart(data.cart)
         toast.success("Course moved to wishlist")
-        // Reset coupon when cart changes
-        setDiscountData(null)
-        setTotalPrice(originalTotalPrice)
+        resetDiscounts()
       }
     } catch (error) {
       const message = error.response?.data?.message || "Failed to move course to wishlist"
@@ -113,24 +142,35 @@ const CartButton = () => {
     }
   }
 
+  // Discount handlers
+  const resetDiscounts = () => {
+    setDiscountData(null)
+    setIsWalletApplied(false)
+  }
+
+  const handleCouponSuccess = (couponData) => {
+    setDiscountData(couponData)
+  }
+
+  const handleCouponRemove = () => {
+    setDiscountData(null)
+  }
+
+  const handleWalletToggle = (pressed) => {
+    setIsWalletApplied(pressed)
+  }
+
+  // Navigation
   const handleCourseClick = (courseId) => {
     setOpenSheet(false)
     navigate(`/courses/${courseId}`)
   }
 
-  const handleCouponSuccess = (couponData) => {
-    setDiscountData(couponData)
-    setTotalPrice(Math.max(0, couponData.finalPrice))
-  }
+  // Utility
+  const formatPrice = (price) => `₹${price.toLocaleString()}`
 
-  const handleCouponRemove = () => {
-    setDiscountData(null)
-    setTotalPrice(originalTotalPrice)
-  }
 
-  const formatPrice = (price) => {
-    return `₹${price.toLocaleString()}`
-  }
+console.log("FINAL AMOUNT",amounts.finalAmount);
 
   return (
     <Sheet open={openSheet} onOpenChange={setOpenSheet}>
@@ -142,10 +182,12 @@ const CartButton = () => {
           </span>
         </Button>
       </SheetTrigger>
-      <SheetContent className="flex flex-col h-full w-full sm:max-w-md">
-        <SheetHeader className="mb-4">
-          <SheetTitle className="text-2xl">Your Cart</SheetTitle>
-          <SheetDescription>
+
+      <SheetContent className="flex flex-col h-full w-full sm:max-w-md p-0">
+        {/* Header */}
+        <SheetHeader className="px-6 py-4 border-b bg-white flex-shrink-0">
+          <SheetTitle className="text-xl">Your Cart</SheetTitle>
+          <SheetDescription className="text-sm">
             {cart.length > 0 ? `${cart.length} ${cart.length === 1 ? "course" : "courses"} in your cart` : ""}
           </SheetDescription>
         </SheetHeader>
@@ -157,163 +199,203 @@ const CartButton = () => {
           </div>
         ) : cart.length > 0 ? (
           <>
-            <ScrollArea className="h-[250px] pl-2 pr-3">
-              <div className="space-y-5">
-                {cart.map((item) => (
-                  <div key={item._id} className="relative">
-                    <div className="flex gap-4">
-                      <div
-                        onClick={() => handleCourseClick(item._id)}
-                        className="h-20 aspect-video rounded-md overflow-hidden flex-shrink-0 cursor-pointer border"
-                      >
-                        <img
-                          className="object-cover"
-                          src={item.thumbnailImage || "/placeholder.svg?height=96&width=96" || "/placeholder.svg"}
-                          alt={item.title}
-                        />
-                      </div>
-
-                      <div className="flex-1 space-y-1 min-w-0">
-                        <h3
-                          className="font-medium line-clamp-2 text-sm cursor-pointer"
+            {/* Cart Items - Scrollable */}
+            <div className="flex-1 min-h-0">
+              <ScrollArea className="h-full">
+                <div className="px-6 py-4 space-y-4">
+                  {cart.map((item, index) => (
+                    <div key={item._id} className="relative group">
+                      <div className="flex gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                        {/* Course Image */}
+                        <div
                           onClick={() => handleCourseClick(item._id)}
+                          className="h-20 w-32 rounded-lg overflow-hidden flex-shrink-0 cursor-pointer border shadow-sm"
                         >
-                          {item.title}
-                        </h3>
-
-                        <div className="flex items-center gap-1">
-                          <Avatar className="size-5">
-                            <AvatarImage
-                              src={item.instructor?.profilePicture || "/placeholder.svg" || "/placeholder.svg"}
-                              alt={item.instructor?.fullName}
-                            />
-                            <AvatarFallback className="text-[8px]">
-                              {item.instructor?.fullName?.charAt(0) || <User className="h-2 w-2" />}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs text-muted-foreground truncate">
-                            {item.instructor?.fullName || "Instructor"}
-                          </span>
+                          <img
+                            className="object-cover w-full h-full hover:scale-105 transition-transform"
+                            src={item.thumbnailImage || "/placeholder.svg?height=80&width=128"}
+                            alt={item.title}
+                          />
                         </div>
 
-                        <StarRating
-                          size="sm"
-                          value={item.rating?.averageRating || 0}
-                          readonly
-                          totalRatingCount={item.rating?.totalRating || 0}
-                        />
+                        {/* Course Details */}
+                        <div className="flex-1 space-y-2 min-w-0">
+                          <h3
+                            className="font-semibold text-sm cursor-pointer leading-tight hover:text-primary transition-colors line-clamp-2"
+                            onClick={() => handleCourseClick(item._id)}
+                          >
+                            {item.title}
+                          </h3>
 
-                        <div className="flex justify-between items-center mt-2">
-                          <span className="font-medium">₹{(item.price || 0).toLocaleString()}</span>
-                          {isMoving === item._id ? (
-                            <Loader className="size-4 text-primary animate-spin" />
-                          ) : (
-                            <span
-                              onClick={() => moveToWishlist(item._id)}
-                              className="cursor-pointer text-primary transition-all"
-                            >
-                              Move to Wishlist
+                          {/* Instructor */}
+                          <div className="flex items-center gap-2">
+                            <Avatar className="size-5">
+                              <AvatarImage
+                                src={item.instructor?.profilePicture || "/placeholder.svg"}
+                                alt={item.instructor?.fullName}
+                              />
+                              <AvatarFallback className="text-[10px]">
+                                {item.instructor?.fullName?.charAt(0) || <User className="h-3 w-3" />}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="text-xs text-muted-foreground truncate">
+                              {item.instructor?.fullName || "Instructor"}
                             </span>
+                          </div>
+
+                          {/* Price and Rating */}
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-lg text-primary">{formatPrice(item.price || 0)}</span>
+                            <div className="flex items-center gap-2">
+                              <StarRating
+                                size="sm"
+                                value={item.rating?.averageRating || 0}
+                                readonly
+                                showCount={false}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center justify-end">
+                            {isMoving === item._id ? (
+                              <Loader className="size-3 text-primary animate-spin" />
+                            ) : (
+                              <button
+                                onClick={() => moveToWishlist(item._id)}
+                                className="text-xs text-primary hover:underline transition-colors"
+                              >
+                                Move to Wishlist
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Remove Button */}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2 right-2 size-8 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => removeFromCart(item._id)}
+                          disabled={isRemoving === item._id}
+                        >
+                          {isRemoving === item._id ? (
+                            <Loader className="size-4 animate-spin" />
+                          ) : (
+                            <CiTrash className="size-4" />
                           )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-1 right-1 size-7 text-muted-foreground hover:text-destructive"
-                      onClick={() => removeFromCart(item._id)}
-                      disabled={isRemoving === item._id}
-                    >
-                      {isRemoving === item._id ? (
-                        <Loader className="size-4 animate-spin" />
-                      ) : (
-                        <CiTrash className="size-5" />
-                      )}
-                    </Button>
-
-                    <Separator className="mt-4" />
-                  </div>
-                ))}
-              </div>
-            </ScrollArea>
-
-            <div className="mt-auto pt-4 space-y-4">
-              {/* Coupon Input */}
-              <CouponInput
-                courseIds={cart.map((item) => item._id)}
-                originalAmount={originalTotalPrice}
-                onCouponSuccess={handleCouponSuccess}
-                onCouponRemove={handleCouponRemove}
-              />
-
-              {/* Price Breakdown */}
-              <div className="bg-muted/40 rounded-lg p-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Subtotal:</span>
-                    <span>{formatPrice(originalTotalPrice)}</span>
-                  </div>
-
-                  {discountData && (
-                    <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Discount ({discountData.code}):</span>
-                        <div className="text-right">
-                          <span className="text-green-600">-{formatPrice(discountData.discountAmount)}</span>
-                          {discountData.discountPercentage && (
-                            <Badge variant="secondary" className="ml-2 text-xs">
-                              {discountData.discountPercentage}% OFF
-                            </Badge>
-                          )}
-                        </div>
+                        </Button>
                       </div>
 
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Discount Type:</span>
-                        <span className="capitalize">
-                          {discountData.discountType}
-                          {discountData.discountType === "percentage" && ` (${discountData.discountValue}%)`}
-                          {discountData.discountType === "fixed" && ` (${formatPrice(discountData.discountValue)})`}
-                        </span>
-                      </div>
-
-                      <Separator className="my-2" />
-                    </>
-                  )}
-
-                  <div className="flex justify-between font-medium text-lg">
-                    <span>Total:</span>
-                    <div className="text-right">
-                      <span className={discountData ? "text-green-600" : ""}>{formatPrice(totalPrice)}</span>
-                      {discountData && originalTotalPrice !== totalPrice && (
-                        <div className="text-sm text-muted-foreground line-through">
-                          {formatPrice(originalTotalPrice)}
-                        </div>
-                      )}
+                      {index < cart.length - 1 && <Separator className="mt-4" />}
                     </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            </div>
+
+            {/* Offers Section - Compact */}
+            <div className="border-t bg-gray-50/50 px-6 py-3 flex-shrink-0">
+              <div className="space-y-3">
+                {/* Coupon Manager - Compact */}
+                <div className="bg-white rounded-lg p-3 border">
+                  <CouponManager
+                    courseIds={cartProductIds}
+                    originalAmount={amounts.originalTotal}
+                    onCouponSuccess={handleCouponSuccess}
+                    onCouponRemove={handleCouponRemove}
+                    className="text-sm"
+                  />
+                </div>
+
+                {/* Wallet Toggle - Compact */}
+                <div className="bg-white rounded-lg p-3 border">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium">Use Wallet Balance</span>
+                    <WalletToggle
+                      walletBalance={walletBalance}
+                      isLoading={isWalletLoading}
+                      onWalletToggle={handleWalletToggle}
+                      isWalletApplied={isWalletApplied}
+                      walletAmount={amounts.walletAmount}
+                    />
                   </div>
-
-                  {discountData && (
-                    <div className="text-center">
-                      <Badge variant="outline" className="text-green-600 border-green-600">
-                        You saved {formatPrice(originalTotalPrice - totalPrice)}!
-                      </Badge>
-                    </div>
-                  )}
                 </div>
               </div>
+            </div>
 
-              <SheetFooter className="flex justify-end">
-                <SheetClose asChild>
-                  <PaymentButton className="py-6" isCart icon text="Proceed to Checkout" amount={totalPrice}/>
-                </SheetClose>
-              </SheetFooter>
+            {/* Price Summary & Payment */}
+            <div className="border-t bg-white px-6 py-4 space-y-4 flex-shrink-0">
+              {/* Price Breakdown */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal:</span>
+                  <span>{formatPrice(amounts.originalTotal)}</span>
+                </div>
+
+                {discountData && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Discount ({discountData.code}):</span>
+                    <div className="text-right">
+                      <span className="text-green-600">-{formatPrice(discountData.discountAmount)}</span>
+                      {discountData.discountPercentage && (
+                        <Badge variant="secondary" className="ml-1 text-xs">
+                          {discountData.discountPercentage}% OFF
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {isWalletApplied && amounts.walletAmount > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Wallet Used:</span>
+                    <span className="text-blue-600">-{formatPrice(amounts.walletAmount)}</span>
+                  </div>
+                )}
+
+                <Separator />
+
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Total:</span>
+                  <div className="text-right">
+                    <span className={amounts.totalSavings > 0 ? "text-green-600" : ""}>
+                      {formatPrice(amounts.finalAmount)}
+                    </span>
+                    {amounts.totalSavings > 0 && (
+                      <div className="text-sm text-muted-foreground line-through">
+                        {formatPrice(amounts.originalTotal)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {amounts.totalSavings > 0 && (
+                  <div className="text-center">
+                    <Badge variant="outline" className="text-green-600 border-green-600">
+                      🎉 You saved {formatPrice(amounts.totalSavings)}!
+                    </Badge>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Button */}
+              <SheetClose asChild>
+                <PaymentButton
+                  course={cartProductIds}
+                  className="w-full py-3 text-lg font-semibold"
+                  isCart={true}
+                  icon
+                  text="Proceed to Checkout"
+                  amount={amounts.finalAmount}
+                  walletAmount={amounts.walletAmount > 0 ? amounts.walletAmount : undefined}
+                  couponCode={discountData?.code || undefined}
+                />
+              </SheetClose>
             </div>
           </>
         ) : (
-          <div className="flex flex-col items-center justify-center flex-1 gap-4">
+          <div className="flex flex-col items-center justify-center flex-1 gap-4 px-6">
             <img src={emptyCartImage || "/placeholder.svg"} className="w-1/2 mx-auto" alt="Empty cart" />
             <p className="text-muted-foreground text-center">Your cart is empty</p>
             <SheetClose asChild>

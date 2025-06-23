@@ -36,6 +36,7 @@ import { CiCalendar, CiEdit, CiMail, CiPhone, CiUser, CiWallet } from "react-ico
 const AccountPage = () => {
   const [userData, setUserData] = useState(null)
   const [qualifications, setQualifications] = useState(null)
+  const [wallet, setWallet] = useState({ balance: 0 });
   const [isLoading, setIsLoading] = useState(true)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
@@ -45,11 +46,12 @@ const AccountPage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const [userResponse, qualResponse] = await Promise.all([
+        const [userResponse, qualResponse, walletRes] = await Promise.all([
           axios.get(`/users/${user._id}`),
           user.role === "instructor"
             ? axios.get(`/instructors/qualifications/${user._id}`).catch(() => null)
             : Promise.resolve(null),
+          axios.get("/wallet")
         ])
 
         if (!userResponse.data.success) {
@@ -60,6 +62,9 @@ const AccountPage = () => {
 
         if (qualResponse?.data?.success) {
           setQualifications(qualResponse.data.qualifications)
+        }
+        if (walletRes?.data?.success) {
+          setWallet(walletRes.data.wallet)
         }
       } catch (error) {
         toast.error(error.message || "Failed to fetch user data")
@@ -128,7 +133,7 @@ const AccountPage = () => {
                 <div className="flex items-center gap-3">
                   {userData.role === "student" && (
                     <Badge variant="outline" className="flex items-center gap-2 px-3 py-2">
-                      <CiWallet className="size-5!" />₹{userData.wallet?.balance?.toFixed(2) || "0.00"}
+                      <CiWallet className="size-5!" /> {wallet.balance.toLocaleString("en", { style: "currency", currency: "INR", minimumFractionDigits: 2 })}
                     </Badge>
                   )}
                   <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="flex-1">
@@ -163,7 +168,7 @@ const AccountPage = () => {
         <TabsList className="w-full flex h-11">
           <TabsTrigger value="profile" className="flex-1">
             <CiUser className="h-4 w-4" />
-            Profile 
+            Profile
           </TabsTrigger>
           <TabsTrigger value="security" className="flex-1">
             <ShieldCheck className="h-4 w-4" />

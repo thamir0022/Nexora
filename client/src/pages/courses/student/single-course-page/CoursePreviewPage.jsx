@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -11,10 +11,29 @@ import { CiShoppingCart, CiHeart, CiClock2, CiUser, CiMobile3, CiTrophy, CiPlay1
 import { toast } from "sonner"
 import PaymentButton from "@/components/PaymentButton"
 import CouponInput from "@/components/CouponInput"
+import Reviews from "@/components/Reviews"
+import useAxiosPrivate from "@/hooks/useAxiosPrivate"
+import { useUserCart } from "@/hooks/useUserCart"
 
 const CoursePreviewPage = ({ course }) => {
   const [isWishlisted, setIsWishlisted] = useState(false)
   const [couponCode, setCouponCode] = useState("")
+  const [reviews, setReviews] = useState([])
+  const axios = useAxiosPrivate()
+  const {addToCart} = useUserCart()
+
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const res = await axios.get(`/reviews?targetId=${course._id}`);
+        setReviews(res.data.reviews);
+      } catch (err) {
+        console.error("Failed to fetch reviews", err);
+      }
+    };
+
+    fetchReviews();
+  }, [course._id]);
 
   // Manual price data (replace with API data when available)
   const [priceData, setPriceData] = useState({
@@ -36,10 +55,6 @@ const CoursePreviewPage = ({ course }) => {
     students: "2,847",
     language: "English",
     level: "Beginner to Advanced",
-  }
-
-  const handleAddToCart = () => {
-    toast.success("Course added to cart!")
   }
 
   const handleWishlist = () => {
@@ -151,9 +166,7 @@ const CoursePreviewPage = ({ course }) => {
             </TabsContent>
 
             <TabsContent value="reviews" className="mt-6">
-              <div className="text-center py-12">
-                <p className="text-gray-600">Course reviews will be displayed here</p>
-              </div>
+              <Reviews reviews={reviews} />
             </TabsContent>
           </Tabs>
         </div>
@@ -200,7 +213,7 @@ const CoursePreviewPage = ({ course }) => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <Button
-                      onClick={handleAddToCart}
+                      onClick={() => addToCart(course._id)}
                       variant="outline"
                       className="w-full h-12 text-lg font-semibold border-2 hover:bg-gray-50"
                     >

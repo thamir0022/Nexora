@@ -60,6 +60,8 @@ const Wizard = ({ open, onOpenChange, email }) => {
     resetWizard()
   }
 
+  console.log(email)
+
   const renderCurrentStep = () => {
     const commonProps = {
       formData,

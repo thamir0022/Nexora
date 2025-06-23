@@ -20,6 +20,8 @@ import { transporter } from "../config/nodemailer.js";
 import { generateOtp } from "../utils/otpgenerator.js";
 import Otp from "../models/otp.model.js";
 import User from "../models/user.model.js";
+import Wallet from "../models/wallet.model.js";
+import { generateNotification } from "../utils/lib.js";
 
 export const sentOtp = async (req, res, next) => {
   try {
@@ -38,7 +40,7 @@ export const sentOtp = async (req, res, next) => {
     if (existingOtp)
       throw new AppError("OTP already send, Try again after some time", 429);
 
-    const newOTP  = await Otp.create({
+    const newOTP = await Otp.create({
       email,
       otp: randomOTP
     });
@@ -71,7 +73,7 @@ export const verifyOtp = async (req, res, next) => {
       throw new AppError("Incorrect Otp, Try again", 400);
 
     await existingOtp.deleteOne();
-    
+
     const newUser = await User.create({
       email,
       emailVerified: true,
@@ -93,16 +95,16 @@ export const registerUser = async (req, res, next) => {
 
     // Validate required fields
     if (!userId || !fullName || !email || !mobile || !password || !role) throw new AppError("All fields are required", 400);
-    
+
 
     if (!["student", "instructor"].includes(role)) throw new AppError("Invalid role selected", 400);
-    
+
 
     // Find user by ID
     const existingUser = await User.findById(userId);
-    if (!existingUser || existingUser.email !== email) 
+    if (!existingUser || existingUser.email !== email)
       throw new AppError("User not found or email mismatch", 404);
-    
+
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -113,6 +115,7 @@ export const registerUser = async (req, res, next) => {
     existingUser.password = hashedPassword;
     existingUser.role = role;
     existingUser.status = role === "student" ? "active" : "pending";
+    existingUser.availableCoupons = role === "student" ? ["684a75668970c56456b8ee57"] : [];
 
     const updatedUser = await existingUser.save();
 
@@ -120,6 +123,8 @@ export const registerUser = async (req, res, next) => {
 
     // If student, generate tokens
     if (role === "student") {
+      await Wallet.create({ user: updatedUser._id });
+      await generateNotification(null, updatedUser._id, `Welcome to Nexora, ${updatedUser.fullName}`, "system");
       const accessToken = generateAccessToken({ id: updatedUser._id, role });
       const refreshToken = generateRefreshToken({ id: updatedUser._id });
 
@@ -127,7 +132,7 @@ export const registerUser = async (req, res, next) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "Strict",
-        maxAge: 7*24*60*60*1000 // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
       });
 
       return res.status(201).json({
@@ -184,7 +189,7 @@ export const signIn = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 7*24*60*60*1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     // ✅ Send access token in JSON response
@@ -279,7 +284,10 @@ export const googleAuth = async (req, res, next) => {
     }
 
     if (user.status !== "active") throw new AppError(`Your account is ${user.status}`, 403, `account-${user.status}`);
-    
+
+    if(user.isNew){
+      await generateNotification(null, user._id, `Welcome to Nexora ${user.fullName}`, "system");
+    }
 
     // Generate tokens
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
@@ -290,7 +298,7 @@ export const googleAuth = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 7*24*60*60*1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
     });
 
     const { password, ...userData } = user.toObject();
@@ -376,6 +384,8 @@ export const resetPassword = async (req, res) => {
   user.resetPasswordExpires = undefined;
 
   await user.save();
+
+  await generateNotification(null, user._id, `Your password has been reset successfully`, "system");
 
   res.status(200).json({ success: true, message: "Password has been reset" });
 };

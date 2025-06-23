@@ -3,7 +3,8 @@ import { toast } from "sonner"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
-import { Plus, Trash2, Loader2, AlertCircle, Check, Calendar, Percent, DollarSign } from "lucide-react"
+import { Plus, Trash2, Loader2, AlertCircle, Check, Calendar, Percent } from "lucide-react"
+import {FaRupeeSign} from "react-icons/fa"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -112,7 +113,7 @@ const CouponManagementPage = () => {
               {row.getValue("discountType") === "percentage" ? (
                 <Percent className="h-3 w-3" />
               ) : (
-                <DollarSign className="h-3 w-3" />
+                <FaRupeeSign className="h-3 w-3" />
               )}
               {row.getValue("discountType")}
             </div>
@@ -389,7 +390,7 @@ const CouponManagementPage = () => {
                                   {type === "percentage" ? (
                                     <Percent className="h-4 w-4" />
                                   ) : (
-                                    <DollarSign className="h-4 w-4" />
+                                    <FaRupeeSign className="h-4 w-4" />
                                   )}
                                   {type}
                                 </div>
@@ -568,7 +569,7 @@ const CouponManagementPage = () => {
                                     {type === "percentage" ? (
                                       <Percent className="h-4 w-4" />
                                     ) : (
-                                      <DollarSign className="h-4 w-4" />
+                                      <FaRupeeSign className="h-4 w-4" />
                                     )}
                                     {type}
                                   </div>

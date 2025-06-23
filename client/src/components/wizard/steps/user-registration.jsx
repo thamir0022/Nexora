@@ -94,6 +94,8 @@ export const UserRegistration = ({ formData, updateFormData, nextStep, previousS
         setIsRegistered(true)
         toast.success("Registration successful!")
 
+        console.log("DATA", response.data)
+
         // Handle different user roles
         if (response.data.user.role === "student") {
           setUser(response.data.user)
@@ -150,7 +152,7 @@ export const UserRegistration = ({ formData, updateFormData, nextStep, previousS
               <FormItem>
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <Input placeholder="john@example.com" {...field} />
+                  <Input disabled placeholder="john@example.com" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

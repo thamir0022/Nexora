@@ -21,7 +21,7 @@ export const WelcomeScreen = ({ formData, onClose }) => {
   return (
     <div className="space-y-6 p-6 text-center">
       <DialogHeader>
-        <DialogTitle className="text-2xl">
+        <DialogTitle className="text-2xl text-center">
           {isStudent ? "🎓" : "🎉"} Welcome{isStudent ? "" : " Aboard"},{" "}
           {formData.fullName || (isStudent ? "Student" : "Instructor")}!
         </DialogTitle>

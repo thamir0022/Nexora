@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { verifyUser } from "../utils/verifyUser.js";
-import { deleteUser, getUserCart, getUser, getUserCourses, updateUser, addToCart, removeFromCart, getUserWishlist, addToWishlist, removeFromWishlist, addToCartFromWishlist, moveToWishlistFromCart, applyCoupon } from "../controllers/user.controller.js";
+import { deleteUser, getUserCart, getUser, getUserCourses, updateUser, addToCart, removeFromCart, getUserWishlist, addToWishlist, removeFromWishlist, addToCartFromWishlist, moveToWishlistFromCart, applyCoupon, getUserCoupon } from "../controllers/user.controller.js";
+import { getUserCertificates } from "../controllers/certificate.controller.js";
 
 const router = Router();
 
@@ -19,6 +20,9 @@ router.post("/:userId/wishlist/:courseId", verifyUser, addToWishlist);
 router.patch("/:userId/wishlist/:courseId", verifyUser, addToCartFromWishlist);
 router.delete("/:userId/wishlist/:courseId", verifyUser, removeFromWishlist);
 
-router.post("/coupon", verifyUser, applyCoupon);
+router.get("/:userId/coupon", verifyUser, getUserCoupon);
+router.post("/:userId/coupon", verifyUser, applyCoupon);
+
+router.get("/:userId/certificates", verifyUser, getUserCertificates);
 
 export default router;

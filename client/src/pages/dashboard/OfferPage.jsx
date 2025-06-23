@@ -1,12 +1,10 @@
-"use client"
-
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
-import { useForm, Controller } from "react-hook-form"
-import { zodResolver } from "@hookform/resolvers/zod"
+import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
 import { Search, X, Plus, Calendar, Percent, Clock, Loader2, Check, Trash2, ChevronDown } from "lucide-react"
+import { FaRupeeSign } from "react-icons/fa"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -30,6 +28,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { DataTable } from "@/components/datatable/data-table"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { cn } from "@/lib/utils"
+import { zodResolver } from "@hookform/resolvers/zod"
 
 // Validation schema
 const offerSchema = z
@@ -50,8 +49,10 @@ const offerSchema = z
   })
 
 // Multi-select combobox component
-const MultiSelectCombobox = ({ data, loading, selectedValues, onSelectionChange, placeholder, type }) => {
+const MultiSelectCombobox = ({ data = [], loading, selectedValues = [], onSelectionChange, placeholder, type }) => {
   const [open, setOpen] = useState(false)
+
+  console.log({ data, selectedValues })
 
   const getDisplayName = (item) => {
     switch (type) {
@@ -60,11 +61,14 @@ const MultiSelectCombobox = ({ data, loading, selectedValues, onSelectionChange,
       case "category":
         return item.name
       case "instructor":
-        return item.name || `${item.firstName} ${item.lastName}`
+        return item.name || item.fullName || `${item.firstName} ${item.lastName}`.trim()
       default:
-        return item.name
+        return item.name || item.title
     }
   }
+
+  // Ensure data is always an array
+  const safeData = Array.isArray(data) ? data : []
 
   return (
     <div className="space-y-2">
@@ -83,14 +87,16 @@ const MultiSelectCombobox = ({ data, loading, selectedValues, onSelectionChange,
             <CommandList>
               <CommandEmpty>{loading ? `Loading ${type}s...` : `No ${type}s found.`}</CommandEmpty>
               <CommandGroup>
-                {data.map((item) => (
+                {safeData.map((item) => (
                   <CommandItem
                     key={item._id}
-                    onSelect={() => {
-                      const newValues = selectedValues.includes(item._id)
-                        ? selectedValues.filter((value) => value !== item._id)
-                        : [...selectedValues, item._id]
+                    value={item._id}
+                    onSelect={(currentValue) => {
+                      const newValues = selectedValues.includes(currentValue)
+                        ? selectedValues.filter((value) => value !== currentValue)
+                        : [...selectedValues, currentValue]
                       onSelectionChange(newValues)
+                      // Don't close the popover to allow multiple selections
                     }}
                   >
                     <Check
@@ -108,7 +114,7 @@ const MultiSelectCombobox = ({ data, loading, selectedValues, onSelectionChange,
       {selectedValues.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedValues.map((valueId) => {
-            const item = data.find((d) => d._id === valueId)
+            const item = safeData.find((d) => d._id === valueId)
             if (!item) return null
             return (
               <Badge key={valueId} variant="secondary" className="text-xs">
@@ -161,19 +167,40 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           endpoint = "/category"
           break
         case "instructor":
-          endpoint = "/admin/users?role=instructors"
+          endpoint = "/admin/users?role=instructor"
           break
       }
 
       const response = await axios.get(endpoint)
+      console.log(`${type} response:`, response.data) // Debug log
+
       if (response.data.success) {
-        const dataKey = type === "instructor" ? "users" : `${type}s`
+        let fetchedData = []
+
+        // Handle different response structures
+        switch (type) {
+          case "course":
+            fetchedData = response.data.courses || response.data.data || []
+            break
+          case "category":
+            fetchedData = response.data.categories || response.data.category || response.data.data || []
+            break
+          case "instructor":
+            fetchedData = response.data.users || response.data.instructors || response.data.data || []
+            break
+          default:
+            fetchedData = response.data[`${type}s`] || response.data.data || []
+        }
+
+        console.log(`${type} fetched data:`, fetchedData) // Debug log
+
         setTypeData((prev) => ({
           ...prev,
-          [`${type}s`]: response.data[dataKey] || [],
+          [`${type}s`]: Array.isArray(fetchedData) ? fetchedData : [],
         }))
       }
     } catch (error) {
+      console.error(`Failed to fetch ${type} data:`, error)
       toast.error(`Failed to fetch ${type} data`)
     } finally {
       setLoadingTypeData(false)
@@ -195,10 +222,13 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
       <div className="space-y-2">
         <Label>Select {watchedType}s *</Label>
         <MultiSelectCombobox
-          data={typeData[`${watchedType}s`]}
+          data={typeData[`${watchedType}s`] || []}
           loading={loadingTypeData}
-          selectedValues={watchedApplicableTo}
-          onSelectionChange={(values) => form.setValue("applicableTo", values)}
+          selectedValues={watchedApplicableTo || []}
+          onSelectionChange={(values) => {
+            console.log('Selection changed:', values) // Debug log
+            form.setValue("applicableTo", values, { shouldValidate: true })
+          }}
           placeholder={`Select ${watchedType}s...`}
           type={watchedType}
         />
@@ -339,6 +369,7 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
             </Select>
           )}
         />
+
       </div>
 
       <div className="flex gap-2 pt-4">
@@ -365,7 +396,7 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           </Button>
         )}
       </div>
-    </form>
+    </form >
   )
 }
 

@@ -26,6 +26,7 @@ export function DataTable({
   className = "",
   onRowClick,
   isLoading = false,
+  ref
 }) {
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -71,7 +72,7 @@ export function DataTable({
   return (
     <div className={cn("space-y-4 dark:bg-black", className)}>
       <div className="rounded-md border">
-        <Table>
+        <Table ref={ref}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

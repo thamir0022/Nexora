@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useLayoutEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -21,6 +21,11 @@ function SignUpPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
   const [userEmail, setUserEmail] = useState("")
+  const emailInputRef = useRef(null)
+
+    useLayoutEffect(() => {
+      emailInputRef.current.focus();
+    }, []);
 
   const form = useForm({
     resolver: zodResolver(signUpSchema),
@@ -53,7 +58,7 @@ function SignUpPage() {
 
   return (
     <section className="min-h-screen flex items-center justify-center">
-      <Link to="/sign-in" className="absolute right-10 top-5 text-blue-600 hover:text-blue-800">
+      <Link to="/sign-in" className="link absolute right-10 top-5">
         Sign In
       </Link>
 
@@ -71,7 +76,7 @@ function SignUpPage() {
               render={({ field }) => (
                 <FormItem>
                   <FormControl>
-                    <Input placeholder="yourname@example.com" type="email" {...field} />
+                    <Input placeholder="yourname@example.com" type="email" {...field} ref={emailInputRef} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

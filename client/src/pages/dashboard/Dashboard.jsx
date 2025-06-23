@@ -8,20 +8,27 @@ import CategoryPage from "./CategoryPage";
 import AddCoursePage from "./CreateCoursePage";
 import OfferManagementPage from "./OfferPage";
 import CouponManagementPage from "./CouponManagementPage";
-import MyCourses from "./MyCourses";
+import MyCourses from "./MyCoursePage/MyCourses";
+import Overview from "./Overview/index";
+import { useAuth } from "@/hooks/useAuth";
+import EnrollmentsList from "./EnrollmentList";
+import MyCertificatesPage from "../my-certificate-page";
 
 const Dashboard = () => {
   const [tab, setTab] = useState("");
   const [searchParams] = useSearchParams();
+  const { user } = useAuth();
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");
     if (tabParam) {
-      setTab(tabParam);
+      setTab(tabParam || "");
     }
   }, [searchParams]);
 
   switch (tab) {
+    case "overview":
+      return <Overview />;
     case "courses":
       return <CoursesList />;
     case "my-courses":
@@ -40,8 +47,12 @@ const Dashboard = () => {
       return <OfferManagementPage />;
     case "coupon":
       return <CouponManagementPage />;
+    case "enrollments":
+      return <EnrollmentsList />;
+    case "certificates":
+      return <MyCertificatesPage />;
     default:
-      return <AccountPage />
+      return <Overview />
   }
 };
 

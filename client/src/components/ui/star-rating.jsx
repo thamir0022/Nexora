@@ -106,10 +106,12 @@ export function StarRating({
       })}
 
       {readonly ? (
-        <span className={`flex gap-1 items-center text-${size} text-muted-foreground`}>
-          {icon && <CiUser className="size-4 text-muted-foreground" />}
-          {totalRatingCount || "0"}
-        </span>
+        totalRatingCount && (
+          <span className={`flex gap-1 items-center text-${size} text-muted-foreground`}>
+            {icon && <CiUser className="size-4 text-muted-foreground" />}
+            {totalRatingCount || "0"}
+          </span>
+        )
       ) : (
         <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
           {rating > 0 ? `${rating.toFixed(1)} of ${maxRating}` : "Rate"}

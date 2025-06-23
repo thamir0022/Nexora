@@ -23,6 +23,12 @@ const courseSchema = new Schema(
       type: Number,
       required: true,
     },
+    offerPrice: {
+      type: Number,
+    },
+    offerPercentage: {
+      type: Number,
+    },
     features: {
       type: [String],
     },

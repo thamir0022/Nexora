@@ -5,19 +5,20 @@ import Notification from "../models/notification.model.js";
 import { AppError } from "./apperror.js";
 
 export const getSort = (sortBy) => {
-  switch (sortBy) {
-    case "price_asc":
-      return { price: 1 };
-    case "price_desc":
-      return { price: -1 };
-    case "name_asc":
-      return { name: 1 };
-    case "name_desc":
-      return { name: -1 };
-    default:
-      return { createdAt: -1 }; // default sort by latest
+  const sortOptions = {
+    newest: { createdAt: -1 },
+    oldest: { createdAt: 1 },
+    "price-low": { price: 1 },
+    "price-high": { price: -1 },
+    "rating-high": { "rating.averageRating": -1 },
+    "rating-low": { "rating.averageRating": 1 },
+    popular: { enrolledCount: -1 },
+    "title-asc": { title: 1 },
+    "title-desc": { title: -1 },
+    relevance: { score: { $meta: "textScore" } },
   }
-};
+  return sortOptions[sortBy] || { createdAt: -1 }
+}
 
 export const hasAccess = async (courseId, userId, userRole) => {
   const course = await Course.findById(courseId)

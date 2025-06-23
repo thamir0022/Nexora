@@ -1,10 +1,10 @@
 import { Router } from "express";
 import { verifyUser } from "../utils/verifyUser.js";
-import { createOrder, verifyOrder } from "../controllers/payment.controller.js";
+import { createOrder, verifyPayment } from "../controllers/payment.controller.js";
 
 const router = Router();
 
 router.post("/order", verifyUser, createOrder);
-router.post("/verify", verifyUser, verifyOrder);
+router.post("/verify", verifyUser, verifyPayment);
 
 export default router;

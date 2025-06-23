@@ -3,6 +3,7 @@ import {
   addInstructorQualification,
   approveInstructor,
   getAllInstructorRequests,
+  getInstructorAnalytics,
   getInstructorCourses,
   getInstructorQualifications,
   getInstructorRequest,
@@ -14,6 +15,7 @@ import { verifyUser } from "../utils/verifyUser.js";
 const router = Router();
 
 router.get("/courses", verifyUser, getInstructorCourses);
+router.get("/analytics", verifyUser, getInstructorAnalytics)
 router.post("/qualifications", addInstructorQualification);
 router.get("/qualifications/:userId", verifyUser, getInstructorQualifications);
 router.patch("/qualifications/:userId", verifyUser, updateInstructorQualification);

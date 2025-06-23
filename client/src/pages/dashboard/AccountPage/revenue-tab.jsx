@@ -1,5 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { TrendingUp, DollarSign, Users, BookOpen } from "lucide-react"
+import { TrendingUp, Users, BookOpen } from "lucide-react"
+import { FaRubleSign } from "react-icons/fa"
 
 export function RevenueTab({ userData }) {
   // Mock revenue data - replace with actual API data
@@ -8,7 +9,7 @@ export function RevenueTab({ userData }) {
       label: "Total Revenue",
       value: "₹45,230",
       change: "+12.5%",
-      icon: DollarSign,
+      icon: FaRubleSign,
     },
     {
       label: "This Month",

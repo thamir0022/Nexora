@@ -1,4 +1,4 @@
-import { isValidObjectId } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import Course from "../models/course.model.js";
 import Lesson from "../models/lesson.model.js";
 import { AppError } from "../utils/apperror.js";
@@ -8,7 +8,7 @@ import { getSort, hasAccess } from "../utils/lib.js";
 import User from "../models/user.model.js";
 import CourseProgress from "../models/progress.model.js";
 
-// GET: All courses
+
 export const getAllCourses = async (req, res, next) => {
   try {
     const {
@@ -16,48 +16,269 @@ export const getAllCourses = async (req, res, next) => {
       page = 1,
       limit = 12,
       status = "published",
-      sortBy,
-    } = req.query;
+      sortBy = "newest",
+      category,
+      instructor,
+      minPrice,
+      maxPrice,
+      minRating,
+      maxRating,
+      features,
+      hashtags,
+      priceType, // 'free', 'paid', 'discounted'
+      dateFrom,
+      dateTo,
+      hasOffer,
+    } = req.query
 
-    if (!["draft", "published", "archived", "all"].includes(status))
-      throw new AppError("Invalid status filter", 400);
+    // Validate status
+    if (!["draft", "published", "archived", "all"].includes(status)) {
+      throw new AppError("Invalid status filter", 400)
+    }
 
-    // Build filter
-    const filter = {
-      ...(status === "all" ? {} : { status }),
-      ...(query && { $text: { $search: query } }),
-    };
+    // Validate pagination parameters
+    const pageNum = Math.max(1, Number.parseInt(page))
+    const limitNum = Math.min(50, Math.max(1, Number.parseInt(limit))) // Max 50 items per page
+    const skip = (pageNum - 1) * limitNum
 
-    const skip = (Number(page) - 1) * Number(limit);
+    // Build aggregation pipeline
+    const pipeline = []
 
-    const courses = await Course.find(filter)
-      .sort(getSort(sortBy))
-      .skip(skip)
-      .limit(Number(limit))
-      .select("-lessons -keywords -tags")
-      .populate("category", "name")
-      .populate("instructor", "fullName profilePicture")
-      .lean();
+    // Match stage - build filter conditions
+    const matchConditions = {}
 
-    if (!courses.length) throw new AppError("No courses found", 404);
+    // Status filter
+    if (status !== "all") {
+      matchConditions.status = status
+    }
 
-    const totalCourses = courses.length;
+    // Text search
+    if (query.trim()) {
+      matchConditions.$text = { $search: query.trim() }
+    }
 
+    // Category filter
+    if (category) {
+      const categoryIds = Array.isArray(category) ? category : [category]
+      const validCategoryIds = categoryIds.filter(isValidObjectId)
+      if (validCategoryIds.length > 0) {
+        matchConditions.category = {
+          $in: validCategoryIds.map((id) => new mongoose.Types.ObjectId(id)),
+        }
+      }
+    }
+
+    // Instructor filter
+    if (instructor) {
+      if (isValidObjectId(instructor)) {
+        matchConditions.instructor = new mongoose.Types.ObjectId(instructor)
+      }
+    }
+
+    // Price filters
+    if (minPrice !== undefined || maxPrice !== undefined || priceType) {
+      const priceConditions = {}
+
+      if (priceType === "free") {
+        priceConditions.price = 0
+      } else if (priceType === "paid") {
+        priceConditions.price = { $gt: 0 }
+      } else if (priceType === "discounted") {
+        priceConditions.offerPrice = { $exists: true, $ne: null }
+      } else {
+        if (minPrice !== undefined) {
+          priceConditions.price = { ...priceConditions.price, $gte: Number.parseFloat(minPrice) }
+        }
+        if (maxPrice !== undefined) {
+          priceConditions.price = { ...priceConditions.price, $lte: Number.parseFloat(maxPrice) }
+        }
+      }
+
+      Object.assign(matchConditions, priceConditions)
+    }
+
+    // Rating filter
+    if (minRating !== undefined || maxRating !== undefined) {
+      const ratingConditions = {}
+      if (minRating !== undefined) {
+        ratingConditions["rating.averageRating"] = {
+          ...ratingConditions["rating.averageRating"],
+          $gte: Number.parseFloat(minRating),
+        }
+      }
+      if (maxRating !== undefined) {
+        ratingConditions["rating.averageRating"] = {
+          ...ratingConditions["rating.averageRating"],
+          $lte: Number.parseFloat(maxRating),
+        }
+      }
+      Object.assign(matchConditions, ratingConditions)
+    }
+
+    // Features filter
+    if (features) {
+      const featuresArray = Array.isArray(features) ? features : [features]
+      matchConditions.features = { $in: featuresArray }
+    }
+
+    // Hashtags filter
+    if (hashtags) {
+      const hashtagsArray = Array.isArray(hashtags) ? hashtags : [hashtags]
+      matchConditions.hashtags = { $in: hashtagsArray }
+    }
+
+    // Date range filter
+    if (dateFrom || dateTo) {
+      const dateConditions = {}
+      if (dateFrom) {
+        dateConditions.$gte = new Date(dateFrom)
+      }
+      if (dateTo) {
+        dateConditions.$lte = new Date(dateTo)
+      }
+      matchConditions.createdAt = dateConditions
+    }
+
+    // Has offer filter
+    if (hasOffer === "true") {
+      matchConditions.offerPrice = { $exists: true, $ne: null }
+    } else if (hasOffer === "false") {
+      matchConditions.$or = [{ offerPrice: { $exists: false } }, { offerPrice: null }]
+    }
+
+    // Add match stage
+    pipeline.push({ $match: matchConditions })
+
+    // Add text score for relevance sorting
+    if (query.trim() && sortBy === "relevance") {
+      pipeline.push({ $addFields: { score: { $meta: "textScore" } } })
+    }
+
+    // Add calculated fields - FIXED the $exists issue
+    pipeline.push({
+      $addFields: {
+        effectivePrice: {
+          $cond: {
+            if: { $ne: [{ $type: "$offerPrice" }, "missing"] },
+            then: "$offerPrice",
+            else: "$price",
+          },
+        },
+        discountPercentage: {
+          $cond: {
+            if: {
+              $and: [
+                { $ne: [{ $type: "$offerPrice" }, "missing"] },
+                { $ne: ["$offerPrice", null] },
+                { $gt: ["$price", 0] },
+              ],
+            },
+            then: {
+              $round: [{ $multiply: [{ $divide: [{ $subtract: ["$price", "$offerPrice"] }, "$price"] }, 100] }, 0],
+            },
+            else: 0,
+          },
+        },
+        totalLessons: { $size: "$lessons" },
+        isPopular: { $gte: ["$enrolledCount", 100] }, // Consider popular if 100+ enrollments
+        isFree: { $eq: ["$price", 0] },
+        hasDiscount: {
+          $and: [{ $ne: [{ $type: "$offerPrice" }, "missing"] }, { $ne: ["$offerPrice", null] }],
+        },
+      },
+    })
+
+    // Lookup stages for population
+    pipeline.push(
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+          pipeline: [{ $project: { _id: 1, name: 1 } }],
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "instructor",
+          foreignField: "_id",
+          as: "instructor",
+          pipeline: [{ $project: { _id: 1, fullName: 1, profilePicture: 1, bio: 1 } }],
+        },
+      },
+      { $unwind: { path: "$instructor", preserveNullAndEmptyArrays: true } },
+    )
+
+    // Project stage - select fields (maintain compatibility with existing client)
+    pipeline.push({
+      $project: {
+        _id: 1,
+        title: 1,
+        category: 1,
+        description: 1,
+        price: 1,
+        offerPrice: 1,
+        offerPercentage: 1,
+        effectivePrice: 1,
+        discountPercentage: 1,
+        features: 1,
+        instructor: 1,
+        status: 1,
+        enrolledCount: 1,
+        rating: 1,
+        thumbnailImage: 1,
+        hashtags: 1,
+        totalLessons: 1,
+        isPopular: 1,
+        isFree: 1,
+        hasDiscount: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        // Include score only if text search is used
+        ...(query.trim() && sortBy === "relevance" && { score: 1 }),
+      },
+    })
+
+    // Sort stage
+    pipeline.push({ $sort: getSort(sortBy) })
+
+    // Get total count before pagination
+    const countPipeline = [...pipeline, { $count: "total" }]
+    const totalResult = await Course.aggregate(countPipeline)
+    const totalCourses = totalResult.length > 0 ? totalResult[0].total : 0
+
+    // Add pagination
+    pipeline.push({ $skip: skip }, { $limit: limitNum })
+
+    // Execute aggregation
+    const courses = await Course.aggregate(pipeline)
+
+    // Calculate pagination info
+    const totalPages = Math.ceil(totalCourses / limitNum)
+    const hasNextPage = pageNum < totalPages
+    const hasPrevPage = pageNum > 1
+
+    // Response (maintaining compatibility with existing client structure)
     res.status(200).json({
       success: true,
       message: "Courses fetched successfully",
       courses,
       totalCourses,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(totalCourses / limit),
+        page: pageNum,
+        limit: limitNum,
+        totalPages,
+        hasNextPage,
+        hasPrevPage,
       },
-    });
+    })
   } catch (error) {
-    next(error);
+    console.error("Error fetching courses:", error)
+    next(error)
   }
-};
+}
 
 // GET: Single Course
 export const getCourseById = async (req, res, next) => {
@@ -151,44 +372,76 @@ export const getCourseProgress = async (req, res, next) => {
 }
 
 export const updateLessonProgress = async (req, res, next) => {
-  const { courseId, lessonId } = req.params;
-  const { status } = req.body;
-  const {_id: user} = req.user;
-
-  if (!['completed', 'uncompleted'].includes(status)) {
-    return res.status(400).json({ message: "Invalid status" });
-  }
-
-
   try {
-    let progress = await CourseProgress.findOne({ user, course: courseId });
+    const { courseId, lessonId } = req.params;
+    const { status } = req.body;
+    const userId = req.user._id;
 
+    // ✅ Validate input
+    if (!['completed', 'uncompleted'].includes(status)) {
+      return res.status(400).json({ success: false, message: "Invalid status" });
+    }
 
-    if (!progress){
+    if (!isValidObjectId(courseId) || !isValidObjectId(lessonId)) {
+      return res.status(400).json({ success: false, message: "Invalid course or lesson ID" });
+    }
+
+    // ✅ Fetch or initialize progress document
+    let progress = await CourseProgress.findOne({ user: userId, course: courseId });
+
+    if (!progress) {
       progress = await CourseProgress.create({
-        user,
+        user: userId,
         course: courseId,
         completedLessons: [],
+        totalLessons: 0, // Optional: populate separately
         progressPercentage: 0,
         lastCompletedLesson: null,
       });
     }
 
-    const index = progress.completedLessons.indexOf(lessonId);
+    const lessonObjectId = new mongoose.Types.ObjectId(lessonId);
+    const isAlreadyCompleted = progress.completedLessons.some(
+      (id) => id.toString() === lessonId
+    );
 
-    if (status === "completed" && index === -1) {
-      progress.completedLessons.push(lessonId);
-    } else if (status === "uncompleted" && index !== -1) {
-      progress.completedLessons.splice(index, 1);
+    // ✅ Update lesson completion status
+    if (status === "completed" && !isAlreadyCompleted) {
+      progress.completedLessons.push(lessonObjectId);
+      progress.lastCompletedLesson = lessonObjectId;
+    }
+
+    if (status === "uncompleted" && isAlreadyCompleted) {
+      progress.completedLessons = progress.completedLessons.filter(
+        (id) => id.toString() !== lessonId
+      );
+
+      // Reset lastCompletedLesson if it was just removed
+      if (progress.lastCompletedLesson?.toString() === lessonId) {
+        progress.lastCompletedLesson = null;
+      }
+    }
+
+    // ✅ Recalculate percentage (optional logic if totalLessons is known)
+    if (progress.totalLessons > 0) {
+      progress.progressPercentage = Math.round(
+        (progress.completedLessons.length / progress.totalLessons) * 100
+      );
     }
 
     await progress.save();
 
-    res.status(200).json({success: true, message: `Lesson marked as ${status}`, progress });
-  } catch (err) {
-    next(err);
+    res.status(200).json({
+      success: true,
+      message: `Lesson marked as ${status}`,
+      progress,
+    });
+
+  } catch (error) {
+    next(error);
   }
 };
+
 
 
 

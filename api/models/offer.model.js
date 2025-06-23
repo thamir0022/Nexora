@@ -15,7 +15,7 @@ const offerSchema = new mongoose.Schema(
       default: "percentage",  
     },
     discountValue: { type: Number, required: true }, // 50 for 50% or $50
-    applicableTo: {
+    applicableTo:{
       type: [
         {
           refModel: {

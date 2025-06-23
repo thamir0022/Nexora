@@ -1,4 +1,4 @@
-import { CiBellOn, CiBoxes, CiChat1, CiChat2, CiDiscount1, CiDollar, CiFolderOn, CiGrid42, CiHeart, CiHome, CiSettings, CiShoppingTag, CiUser, CiViewList } from "react-icons/ci";
+import { CiBellOn, CiBoxes, CiChat1, CiChat2, CiDiscount1, CiFileOn, CiFolderOn, CiGrid42, CiHeart, CiHome, CiSettings, CiShoppingTag, CiUser, CiViewList } from "react-icons/ci";
 
 
 const sub = [
@@ -27,29 +27,14 @@ const sub = [
 const studentNav = {
   main: [
     {
-      title: "Home",
-      url: "/",
-      icon: CiHome,
+      title: "Overview",
+      url: "/dashboard?tab=overview",
+      icon: CiGrid42,
     },
     {
-      title: "My Learning",
-      url: "/dashboard?tab=my-courses",
-      icon: CiFolderOn,
-      items: [
-        {
-          title: "My Courses",
-          url: "/dashboard?tab=my-courses",
-        },
-        {
-          title: "Certificates",
-          url: "/dashboard?tab=certificates",
-        },
-      ],
-    },
-    {
-      title: "Wishlist",
-      url: "/dashboard?tab=wishlist",
-      icon: CiHeart,
+      title: "Certificates",
+      url: "/dashboard?tab=certificates",
+      icon: CiFileOn,
     },
   ],
   sub,
@@ -58,9 +43,9 @@ const studentNav = {
 const instructorNav = {
   main: [
     {
-      title: "Home",
-      url: "/",
-      icon: CiHome,
+      title: "Overview",
+      url: "/dashboard?tab=overview",
+      icon: CiGrid42,
     },
     {
       title: "Course Management",
@@ -88,18 +73,13 @@ const adminNav = {
   main: [
     {
       title: "Overview",
-      url: "/dashboard",
+      url: "/dashboard?tab=overview",
       icon: CiGrid42,
     },
     {
       title: "Users",
       icon: CiUser,
       url: "/dashboard?tab=users",
-    },
-    {
-      title: "Notifications",
-      icon: CiBellOn,
-      url: "/dashboard?tab=notifications",
     },
     {
       title: "Instructor Requests",
@@ -117,8 +97,8 @@ const adminNav = {
       icon: CiBoxes,
     },
     {
-      title: "Orders",
-      url: "/dashboard?tab=orders",
+      title: "Enrollments",
+      url: "/dashboard?tab=enrollments",
       icon: CiViewList,
     },
     {
@@ -130,12 +110,7 @@ const adminNav = {
       title: "Offers",
       url: "/dashboard?tab=offers",
       icon: CiDiscount1,
-    },
-    {
-      title: "Revenue Analytics",
-      url: "/dashboard?tab=orders",
-      icon: CiDollar,
-    },
+    }
   ],
   sub,
 };

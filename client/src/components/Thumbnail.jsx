@@ -37,7 +37,7 @@ export default function Thumbnail({
       <div className="p-4 space-y-2">
         <Link to={role === "student" ? `/courses/${_id}` : `/dashboard/courses/${_id}`}>
           <h2 className="text-lg font-semibold line-clamp-2" title={title}>{title}</h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2" title={description}>{description}</p>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2">{description}</p>
         </Link>
 
         <div className="flex items-center gap-2">
@@ -64,44 +64,44 @@ export default function Thumbnail({
         </div>
 
         {isEnrolled ? (
-          <Button className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/80 hover:to-primary/90">Go to Course</Button>
+          <Link to={`/courses/${_id}`}><Button className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/80 hover:to-primary/90">Go to Course</Button></Link>
         ) : (
           <div className="flex items-center gap-2">
-          <PaymentButton className="flex-1" amount={price} course={_id} text="Buy" />
-          {isInCart ? (
-            <Button variant="outline" className="flex-1" onClick={openCart}>
-              Go to cart
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={() => onAddToCart(_id)}
-              disabled={addingToCart}
-            >
-              {addingToCart ? <Loader className="size-5 animate-spin" /> : "Add to Cart"}
-            </Button>
-          )}
+            <PaymentButton className="flex-1" amount={price} course={[_id]} text="Buy" />
+            {isInCart ? (
+              <Button variant="outline" className="flex-1" onClick={openCart}>
+                Go to cart
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => onAddToCart(_id)}
+                disabled={addingToCart}
+              >
+                {addingToCart ? <Loader className="size-5 animate-spin" /> : "Add to Cart"}
+              </Button>
+            )}
 
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {isInWishlist ? (
-                <PiHeartStraightFill
-                  onClick={() => onRemoveFromWishlist(_id)}
-                  className="size-6 fill-primary cursor-pointer"
-                />
-              ) : (
-                <PiHeartStraightLight
-                  onClick={() => onAddToWishlist(_id)}
-                  className="size-6 text-primary hover:text-primary cursor-pointer"
-                />
-              )}
-            </TooltipTrigger>
-            <TooltipContent>
-              {isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
-            </TooltipContent>
-          </Tooltip>
-        </div>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                {isInWishlist ? (
+                  <PiHeartStraightFill
+                    onClick={() => onRemoveFromWishlist(_id)}
+                    className="size-6 fill-primary cursor-pointer"
+                  />
+                ) : (
+                  <PiHeartStraightLight
+                    onClick={() => onAddToWishlist(_id)}
+                    className="size-6 text-primary hover:text-primary cursor-pointer"
+                  />
+                )}
+              </TooltipTrigger>
+              <TooltipContent>
+                {isInWishlist ? "Remove from wishlist" : "Add to wishlist"}
+              </TooltipContent>
+            </Tooltip>
+          </div>
         )}
       </div>
     </div>

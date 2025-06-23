@@ -1,10 +1,14 @@
 import { model, Schema } from "mongoose";
 
 const walletTransactionSchema = new Schema({
-  userId: {
+  user: {
     type: Schema.Types.ObjectId,
     ref: "User",
     required: true,
+  },
+  wallet: {
+    type: Schema.Types.ObjectId,
+    ref: "Wallet",
   },
   type: {
     type: String,
@@ -12,18 +16,19 @@ const walletTransactionSchema = new Schema({
     required: true,
   },
   amount: { type: Number, required: true },
-  description: { type: String }, // e.g., "Referral bonus", "Used in checkout"
   status: {
     type: String,
     enum: ["success", "pending", "failed"],
+    default: "success",
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-});
+  meta: {
+    type: Object,
+    default: {},
+  }
+}, { timestamps: true });
 
-const WalletTransactions = new model(
+
+const WalletTransactions = model(
   "WalletTransactions",
   walletTransactionSchema
 );

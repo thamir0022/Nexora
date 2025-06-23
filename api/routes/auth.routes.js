@@ -20,7 +20,7 @@ router.post("/sign-in", signIn);
 router.get("/sign-out", signOut);
 router.get("/refresh", refreshToken);
 router.post("/google", googleAuth); // Google sign-in route
-router.post("/forgot-password", sendResetPasswordLink); 
+router.post("/forgot-password", sendResetPasswordLink);
 router.post("/reset-password/:token", resetPassword);
 
 export default router;

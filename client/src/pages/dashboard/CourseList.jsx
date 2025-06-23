@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Search, Calendar, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StarRating } from "@/components/ui/star-rating";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/datatable/data-table";
@@ -24,7 +24,7 @@ function CoursesList() {
     const fetchCourses = async () => {
       try {
         setLoading(true);
-        const url = user.role === "admin" ? "/courses?status=all" : "/instructors/courses";
+        const url = user.role === "admin" ? "/courses/all?status=all" : "/instructors/courses";
         const response = await axios.get(url);
 
         if (!response.data.success) {
@@ -154,6 +154,7 @@ function CoursesList() {
               src={row.original.instructor?.profilePicture || "/placeholder.svg"}
               alt={row.original.instructor?.fullName || "Instructor"}
             />
+            <AvatarFallback>{row.original.instructor?.fullName?.charAt(0)}</AvatarFallback>
           </Avatar>
           <span>
             {row.original.instructor?.fullName || "Unknown Instructor"}

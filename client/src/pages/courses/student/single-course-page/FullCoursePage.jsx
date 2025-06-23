@@ -4,27 +4,35 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import VideoPlayer from "@/components/video-player"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import Reviews, { WriteReview } from "@/components/Reviews"
+import { useAuth } from "@/hooks/useAuth"
+import { toast } from "sonner"
+import { Award, Loader2 } from "lucide-react"
 
 const FullCoursePage = ({ course }) => {
+  const navigate = useNavigate()
   const params = useParams()
   const { courseId, lessonId } = params || {}
+  const { user } = useAuth()
   const [currentLesson, setCurrentLesson] = useState(null)
   const [lessonLoading, setLessonLoading] = useState(false)
+  const [reviews, setReviews] = useState([])
   const [completedLessons, setCompletedLessons] = useState(new Set())
   const [progress, setProgress] = useState(null)
   const [progressLoading, setProgressLoading] = useState(true)
+  const [isReviewSubmitting, setIsReviewSubmitting] = useState(false)
+  const [isCreatingCertificate, setIsCreatingCertificate] = useState(false)
+  const [hasCertificate, setHasCertificate] = useState(false)
   const axios = useAxiosPrivate()
-  const navigate = useNavigate()
 
   // Fetch course progress
   useEffect(() => {
     const fetchProgress = async () => {
-      if (!courseId) return
-
       try {
         setProgressLoading(true)
         const response = await axios.get(`/courses/${courseId}/progress`)
@@ -40,6 +48,9 @@ const FullCoursePage = ({ course }) => {
           setCompletedLessons(completedIndices)
         }
 
+        // Check if user already has certificate
+        setHasCertificate(response.data.progress.hasCertificate || false)
+
         setProgressLoading(false)
       } catch (err) {
         console.error("Failed to fetch progress:", err)
@@ -52,19 +63,38 @@ const FullCoursePage = ({ course }) => {
     }
   }, [courseId, course?.lessons, axios])
 
+  useEffect(() => {
+    const fetchReviews = async () => {
+      try {
+        const response = await axios.get(`/reviews?targetId=${courseId}`)
+        setReviews(response.data.reviews)
+      } catch (err) {
+        console.error("Failed to fetch reviews:", err)
+      }
+    }
+
+    if (courseId) {
+      fetchReviews()
+    }
+  }, [courseId, axios])
+
   // Find current lesson index based on the lessonId in the route
   const currentLessonIndex = useMemo(() => {
     if (!lessonId || !course?.lessons) return 0
     return course.lessons.findIndex((l) => l._id === lessonId)
   }, [lessonId, course?.lessons])
 
-  // If no lessonId in URL, redirect to the first lesson
-  useEffect(() => {
-    if (!lessonId && course?.lessons?.length > 0) {
-      const firstLessonId = course.lessons[0]._id
-      navigate(`/courses/${courseId}/${firstLessonId}`, { replace: true })
-    }
-  }, [course, lessonId, courseId, navigate])
+  // Check if current lesson is the last lesson
+  const isLastLesson = useMemo(() => {
+    if (!course?.lessons) return false
+    return currentLessonIndex === course.lessons.length - 1
+  }, [currentLessonIndex, course?.lessons])
+
+  // Check if all lessons are completed
+  const allLessonsCompleted = useMemo(() => {
+    if (!course?.lessons) return false
+    return completedLessons.size === course.lessons.length
+  }, [completedLessons.size, course?.lessons])
 
   // Fetch specific lesson data when lessonId changes
   useEffect(() => {
@@ -101,13 +131,13 @@ const FullCoursePage = ({ course }) => {
     navigate(`/courses/${courseId}/${prevLessonId}`)
   }
 
-  // Handle lesson completion - placeholder for now
+  // Handle lesson completion
   const handleLessonComplete = async (lessonIndex, checked) => {
     const lessonId = course.lessons[lessonIndex]._id
 
     try {
       // Make API call to update lesson completion status
-      const response = await axios.put(`/courses/${courseId}/lessons/${lessonId}`, {
+      const response = await axios.put(`/courses/${courseId}/lessons/${lessonId}/progress`, {
         status: checked ? "completed" : "uncompleted",
       })
 
@@ -128,15 +158,79 @@ const FullCoursePage = ({ course }) => {
       }
     } catch (err) {
       console.error("Failed to update lesson completion:", err)
-      // Optionally show error message to user
+      toast.error("Failed to update lesson progress")
     }
   }
 
-  const formatPrice = (price) => {
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-    }).format(price / 100)
+  // Handle course completion and certificate creation
+  const handleCompleteCourse = async () => {
+    if (!allLessonsCompleted) {
+      toast.error("Please complete all lessons before generating your certificate")
+      return
+    }
+
+    if (hasCertificate) {
+      toast.info("You already have a certificate for this course")
+      return
+    }
+
+    try {
+      setIsCreatingCertificate(true)
+      const response = await axios.post(`/certificates/${courseId}`)
+
+      if (response.data.success) {
+        setHasCertificate(true)
+        toast.success("🎉 Congratulations! Your certificate has been generated successfully!")
+
+        // Optionally navigate to certificates page or show certificate
+        // navigate('/certificates')
+      }
+    } catch (err) {
+      console.error("Failed to create certificate:", err)
+      const message = err.response?.data?.message || "Failed to generate certificate. Please try again."
+      toast.error(message)
+    } finally {
+      setIsCreatingCertificate(false)
+    }
+  }
+
+  const handleReviewSubmit = async (data) => {
+    setIsReviewSubmitting(true)
+    try {
+      const response = await axios.post(`/reviews?targetId=${courseId}&targetType=course`, data)
+      if (response.data.success) {
+        setReviews((prev) => [response.data.review, ...prev])
+      }
+    } catch (err) {
+      const message = err.response?.data?.message || "Failed to submit review. Please try again!!!."
+      toast.error(message)
+    } finally {
+      setIsReviewSubmitting(false)
+    }
+  }
+
+  const handleDeleteReview = async (reviewId) => {
+    try {
+      const response = await axios.delete(`/reviews/${reviewId}`)
+      if (response.data.success) {
+        setReviews((prev) => prev.filter((review) => review._id !== reviewId))
+      }
+    } catch (err) {
+      const message = err.response?.data?.message || "Failed to delete review. Please try again!!!."
+      toast.error(message)
+    }
+  }
+
+  const handleEditReview = async (reviewId, data) => {
+    try {
+      const response = await axios.patch(`/reviews/${reviewId}`, data)
+      if (response.data.success) {
+        setReviews((prev) => prev.map((review) => (review._id === reviewId ? response.data.review : review)))
+      }
+    } catch (err) {
+      const message = err.response?.data?.message || "Failed to edit review. Please try again!!!."
+      toast.error(message)
+    }
   }
 
   const formatDate = (dateString) => {
@@ -175,50 +269,95 @@ const FullCoursePage = ({ course }) => {
     return (
       <div className="space-y-2">
         {course?.lessons?.length > 0 ? (
-          <Accordion type="single" collapsible>
-            {course.lessons.map((lesson, i) => {
-              const isCurrentOrPrevious = i <= currentLessonIndex
-              const isCompleted = completedLessons.has(i)
+          <>
+            <Accordion type="single" collapsible>
+              {course.lessons.map((lesson, i) => {
+                const isCurrentOrPrevious = i <= currentLessonIndex
+                const isCompleted = completedLessons.has(i)
 
-              return (
-                <AccordionItem key={lesson._id} value={`lesson-${i}`} className="border! rounded-lg mb-2 last:mb-0">
-                  <div className="p-3">
-                    <div className="flex items-start gap-3">
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-sm font-medium text-gray-600 min-w-[20px]">{i + 1}</span>
-                        <Checkbox
-                          className="size-5"
-                          checked={isCompleted}
-                          disabled={!isCurrentOrPrevious}
-                          onCheckedChange={(checked) => handleLessonComplete(i, checked)}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <AccordionTrigger className="flex items-center gap-3 hover:no-underline p-0 text-left">
-                          <div className="flex items-center gap-3 flex-1 min-w-0">
-                            <img
-                              src={lesson.thumbnailImage || "/placeholder.svg"}
-                              alt={lesson.title}
-                              className="w-24 sm:w-28 aspect-video rounded-md object-cover flex-shrink-0"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-sm sm:text-base leading-tight">{lesson.title}</p>
-                              {lesson.duration && (
-                                <p className="text-xs text-gray-500 mt-1">Duration: {lesson.duration} min</p>
-                              )}
+                return (
+                  <AccordionItem key={lesson._id} value={`lesson-${i}`} className="border! rounded-lg mb-2 last:mb-0">
+                    <div className="p-3">
+                      <div className="flex items-start gap-3">
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          <span className="text-sm font-medium text-gray-600 min-w-[20px]">{i + 1}</span>
+                          <Checkbox
+                            className="size-5"
+                            checked={isCompleted}
+                            disabled={!isCurrentOrPrevious}
+                            onCheckedChange={(checked) => handleLessonComplete(i, checked)}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <AccordionTrigger className="flex items-center gap-3 hover:no-underline p-0 text-left">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <img
+                                src={lesson.thumbnailImage || "/placeholder.svg"}
+                                alt={lesson.title}
+                                className="w-24 sm:w-28 aspect-video rounded-md object-cover flex-shrink-0"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm sm:text-base leading-tight">{lesson.title}</p>
+                                {lesson.duration && (
+                                  <p className="text-xs text-gray-500 mt-1">Duration: {lesson.duration} min</p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        </AccordionTrigger>
-                        <AccordionContent className="pt-3 pb-0">
-                          <p className="text-sm text-gray-600 leading-relaxed">{lesson.description}</p>
-                        </AccordionContent>
+                          </AccordionTrigger>
+                          <AccordionContent className="pt-3 pb-0">
+                            <p className="text-sm text-gray-600 leading-relaxed">{lesson.description}</p>
+                          </AccordionContent>
+                        </div>
                       </div>
                     </div>
+                  </AccordionItem>
+                )
+              })}
+            </Accordion>
+
+            {/* Complete Course Button */}
+            <div className="mt-6 p-4 border-t border-gray-200">
+              <div className="text-center space-y-3">
+                <div className="text-sm text-gray-600">
+                  Progress: {completedLessons.size} of {course.lessons.length} lessons completed
+                </div>
+
+                {hasCertificate ? (
+                  <div className="flex items-center justify-center gap-2 text-green-600">
+                    <Award className="h-5 w-5" />
+                    <span className="font-medium">Certificate Generated!</span>
                   </div>
-                </AccordionItem>
-              )
-            })}
-          </Accordion>
+                ) : (
+                  <Button
+                    onClick={handleCompleteCourse}
+                    disabled={!isLastLesson || !allLessonsCompleted || isCreatingCertificate}
+                    className="w-full"
+                    size="lg"
+                  >
+                    {isCreatingCertificate ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Generating Certificate...
+                      </>
+                    ) : (
+                      <>
+                        <Award className="h-4 w-4 mr-2" />
+                        Complete Course & Get Certificate
+                      </>
+                    )}
+                  </Button>
+                )}
+
+                {!allLessonsCompleted && (
+                  <p className="text-xs text-gray-500">Complete all lessons to unlock your certificate</p>
+                )}
+
+                {allLessonsCompleted && !isLastLesson && (
+                  <p className="text-xs text-gray-500">Navigate to the last lesson to complete the course</p>
+                )}
+              </div>
+            </div>
+          </>
         ) : (
           <p className="text-center text-gray-500">No lessons available</p>
         )}
@@ -246,14 +385,14 @@ const FullCoursePage = ({ course }) => {
             onPrevious={handlePrevious}
           />
 
-					<h2 className="text-xl font-semibold">{currentLesson?.title}</h2>
-					<Link to={"#"} className="flex items-center gap-2 size-fit">
-						<Avatar>
-							<AvatarImage src={course.instructor.profilePicture}/>
-							<AvatarFallback>{course.instructor.fullName.charAt(0)}</AvatarFallback>
-						</Avatar>
-						<p className="font-medium">{course.instructor.fullName}</p>
-					</Link>
+          <h2 className="text-xl font-semibold">{course.lessons[currentLessonIndex]?.title}</h2>
+          <Link to={"#"} className="flex items-center gap-2 size-fit">
+            <Avatar>
+              <AvatarImage src={course.instructor.profilePicture || "/placeholder.svg"} />
+              <AvatarFallback>{course.instructor.fullName.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <p className="font-medium">{course.instructor.fullName}</p>
+          </Link>
 
           {/* Tabs below the video */}
           <Tabs defaultValue="overview" className="w-full">
@@ -266,6 +405,12 @@ const FullCoursePage = ({ course }) => {
               </TabsTrigger>
               <TabsTrigger value="resources" className="flex-1">
                 Resources
+              </TabsTrigger>
+              <TabsTrigger value="discussions" className="flex-1">
+                Discussions
+              </TabsTrigger>
+              <TabsTrigger value="reviews" className="flex-1">
+                Reviews
               </TabsTrigger>
               <TabsTrigger value="summary" className="flex-1">
                 Summary
@@ -282,33 +427,6 @@ const FullCoursePage = ({ course }) => {
                     <h3 className="font-semibold mb-2">Description</h3>
                     <p className="text-gray-600">{course.description}</p>
                   </div>
-
-                  {/* <div>
-                    <h3 className="font-semibold mb-2">Course Details</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-gray-500">Price</p>
-                        <p className="font-medium text-lg text-green-600">{formatPrice(course.price)}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Enrolled Students</p>
-                        <p className="font-medium">{course.enrolledCount}</p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Rating</p>
-                        <p className="font-medium">
-                          {course.rating.averageRating > 0
-                            ? `${course.rating.averageRating}/5 (${course.rating.ratingCount} reviews)`
-                            : "No ratings yet"}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-sm text-gray-500">Status</p>
-                        <Badge variant={course.status === "published" ? "default" : "secondary"}>{course.status}</Badge>
-                      </div>
-                    </div>
-                  </div> */}
-
 
                   <div>
                     <h3 className="font-semibold mb-2">Features</h3>
@@ -331,7 +449,7 @@ const FullCoursePage = ({ course }) => {
                       ))}
                     </div>
                   </div>
-									
+
                   <div>
                     <h3 className="font-semibold mb-2">Tags</h3>
                     <div className="flex flex-wrap gap-2">
@@ -405,6 +523,38 @@ const FullCoursePage = ({ course }) => {
               </Card>
             </TabsContent>
 
+            <TabsContent value="discussions" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Course Discussions</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="font-semibold mb-2">Course Discussions</h3>
+                      <p className="text-gray-600 mb-4">No discussions available for this course</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="reviews" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <WriteReview isSubmitting={isReviewSubmitting} onSubmit={handleReviewSubmit} />
+                </CardHeader>
+                <CardContent>
+                  <Reviews
+                    reviews={reviews}
+                    currentUserId={user._id}
+                    onDelete={handleDeleteReview}
+                    onEdit={handleEditReview}
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             <TabsContent value="summary" className="mt-4">
               <Card>
                 <CardHeader>
@@ -466,11 +616,6 @@ const FullCoursePage = ({ course }) => {
           <Card className="sticky top-4 h-[calc(100vh-2rem)] overflow-auto">
             <CardHeader>
               <CardTitle>Course Lessons</CardTitle>
-              {/* <p className="text-sm text-gray-500">
-                {progressLoading
-                  ? "Loading progress..."
-                  : `${completedLessons.size} of ${course.lessons.length} completed (${progress?.progressPercentage || 0}%)`}
-              </p> */}
             </CardHeader>
             <CardContent>
               <LessonsContent />

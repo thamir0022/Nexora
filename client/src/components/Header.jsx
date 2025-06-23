@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import { Loader2, Menu, X, User, Home, BookOpen, LogOut } from "lucide-react";
+import { Loader2, Menu, X, User, Home, BookOpen, LogOut } from 'lucide-react';
 import BrandLogo from "./BrandLogo";
 import { useAuth } from "@/hooks/useAuth";
 import axios from "@/config/axios";
@@ -48,9 +48,10 @@ const Header = () => {
 
       setIsSearching(true);
       try {
-        const res = await axios.get(`/courses?query=${debouncedSearchText}`);
+        // Updated API route to /courses/all
+        const res = await axios.get(`/courses/all?query=${debouncedSearchText}&limit=5`);
         if (res.data.success) {
-          setSearchResults(res.data.courses);
+          setSearchResults(res.data.courses || []);
           setShowDropdown(true);
         } else {
           setSearchResults([]);
@@ -81,7 +82,13 @@ const Header = () => {
 
   const handleCourseClick = (courseId) => {
     setShowDropdown(false);
-    navigate(`/course/${courseId}`);
+    setSearchText("");
+    navigate(`/courses/${courseId}`);
+  };
+
+  const handleSearchAllClick = () => {
+    setShowDropdown(false);
+    navigate(`/courses?q=${encodeURIComponent(searchText)}`);
   };
 
   return (
@@ -110,8 +117,13 @@ const Header = () => {
               value={searchText}
               onChange={handleSearchChange}
               onFocus={() => {
-                if (searchResults.length > 0) {
+                if (searchResults.length > 0 || searchText) {
                   setShowDropdown(true);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && searchText.trim()) {
+                  handleSearchAllClick();
                 }
               }}
             />
@@ -132,63 +144,76 @@ const Header = () => {
             )}
 
             {/* Search Results Dropdown */}
-            {showDropdown && (
+            {showDropdown && searchText && (
               <div className="absolute z-[1000] w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-[70vh] overflow-y-auto">
                 {isSearching ? (
                   <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                     Searching...
                   </div>
-                ) : searchResults.length > 0 ? (
-                  <ul className="py-2">
-                    {searchResults.map((course) => (
-                      <li key={course._id}>
-                        <button
-                          className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-start gap-3 transition-colors"
-                          onClick={() => handleCourseClick(course._id)}
-                        >
-                          <div className="flex-shrink-0 w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
-                            <img
-                              src={
-                                course.thumbnailImage ||
-                                "/placeholder.svg?height=56&width=56"
-                              }
-                              alt=""
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.src =
-                                  "/placeholder.svg?height=56&width=56";
-                              }}
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm line-clamp-1 dark:text-white">
-                              {course.title}
-                            </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                              {course.instructor?.fullName ||
-                                "Unknown Instructor"}
-                            </p>
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {course.category?.slice(0, 2).map((cat) => (
-                                <span
-                                  key={cat._id}
-                                  className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-600 rounded-full dark:text-gray-200"
-                                >
-                                  {cat.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : searchText ? (
-                  <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                    No courses found
-                  </div>
-                ) : null}
+                ) : (
+                  <>
+                    {searchResults.length > 0 && (
+                      <ul className="py-2">
+                        {searchResults.map((course) => (
+                          <li key={course._id}>
+                            <button
+                              className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-start gap-3 transition-colors"
+                              onClick={() => handleCourseClick(course._id)}
+                            >
+                              <div className="flex-shrink-0 w-14 h-14 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                <img
+                                  src={
+                                    course.thumbnailImage ||
+                                    "/placeholder.svg?height=56&width=56"
+                                   || "/placeholder.svg"}
+                                  alt=""
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.target.src =
+                                      "/placeholder.svg?height=56&width=56";
+                                  }}
+                                />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm line-clamp-1 dark:text-white">
+                                  {course.title}
+                                </p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                                  {course.instructor?.fullName ||
+                                    "Unknown Instructor"}
+                                </p>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {course.category?.slice(0, 2).map((cat) => (
+                                    <span
+                                      key={cat._id}
+                                      className="text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-600 rounded-full dark:text-gray-200"
+                                    >
+                                      {cat.name}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    
+                    {/* Search All Link - Always show when there's search text */}
+                    <div className="border-t border-gray-200 dark:border-gray-700">
+                      <button
+                        onClick={handleSearchAllClick}
+                        className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                      >
+                        <CiSearch className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium text-primary">
+                          Search "{searchText}" in all courses
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -245,8 +270,13 @@ const Header = () => {
                       value={searchText}
                       onChange={handleSearchChange}
                       onFocus={() => {
-                        if (searchResults.length > 0) {
+                        if (searchResults.length > 0 || searchText) {
                           setShowDropdown(true);
+                        }
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && searchText.trim()) {
+                          handleSearchAllClick();
                         }
                       }}
                     />
@@ -267,53 +297,66 @@ const Header = () => {
                     )}
 
                     {/* Mobile Search Results Dropdown */}
-                    {showDropdown && (
+                    {showDropdown && searchText && (
                       <div className="absolute z-50 w-full mt-2 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 max-h-[50vh] overflow-y-auto">
                         {isSearching ? (
                           <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
                             <Loader2 className="h-5 w-5 animate-spin mx-auto mb-2" />
                             Searching...
                           </div>
-                        ) : searchResults.length > 0 ? (
-                          <ul className="py-2">
-                            {searchResults.map((course) => (
-                              <li key={course._id}>
-                                <button
-                                  className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-start gap-3 transition-colors"
-                                  onClick={() => handleCourseClick(course._id)}
-                                >
-                                  <div className="flex-shrink-0 w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
-                                    <img
-                                      src={
-                                        course.thumbnailImage ||
-                                        "/placeholder.svg?height=48&width=48"
-                                      }
-                                      alt=""
-                                      className="w-full h-full object-cover"
-                                      onError={(e) => {
-                                        e.target.src =
-                                          "/placeholder.svg?height=48&width=48";
-                                      }}
-                                    />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="font-medium text-sm line-clamp-1 dark:text-white">
-                                      {course.title}
-                                    </p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                                      {course.instructor?.fullName ||
-                                        "Unknown Instructor"}
-                                    </p>
-                                  </div>
-                                </button>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : searchText ? (
-                          <div className="p-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No courses found
-                          </div>
-                        ) : null}
+                        ) : (
+                          <>
+                            {searchResults.length > 0 && (
+                              <ul className="py-2">
+                                {searchResults.map((course) => (
+                                  <li key={course._id}>
+                                    <button
+                                      className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-start gap-3 transition-colors"
+                                      onClick={() => handleCourseClick(course._id)}
+                                    >
+                                      <div className="flex-shrink-0 w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                                        <img
+                                          src={
+                                            course.thumbnailImage ||
+                                            "/placeholder.svg?height=48&width=48"
+                                           || "/placeholder.svg"}
+                                          alt=""
+                                          className="w-full h-full object-cover"
+                                          onError={(e) => {
+                                            e.target.src =
+                                              "/placeholder.svg?height=48&width=48";
+                                          }}
+                                        />
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="font-medium text-sm line-clamp-1 dark:text-white">
+                                          {course.title}
+                                        </p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                                          {course.instructor?.fullName ||
+                                            "Unknown Instructor"}
+                                        </p>
+                                      </div>
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                            
+                            {/* Mobile Search All Link */}
+                            <div className="border-t border-gray-200 dark:border-gray-700">
+                              <button
+                                onClick={handleSearchAllClick}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors flex items-center gap-3"
+                              >
+                                <CiSearch className="h-5 w-5 text-primary" />
+                                <span className="text-sm font-medium text-primary">
+                                  Search "{searchText}" in all courses
+                                </span>
+                              </button>
+                            </div>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -335,7 +378,7 @@ const Header = () => {
                     </li>
                     <li>
                       <Link
-                        to="/courses"
+                        to="/search"
                         className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
                       >
                         <BookOpen className="h-5 w-5 text-gray-500 dark:text-gray-400" />

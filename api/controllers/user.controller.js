@@ -49,26 +49,101 @@ export const getUserCourses = async (req, res, next) => {
     const { userId } = req.params;
 
     if (!userId || !isValidObjectId(userId)) {
-      const message = !userId ? "User ID is required" : "Invalid User ID";
-      return next(new AppError(message, 400));
+      return next(new AppError("Invalid or missing User ID", 400));
     }
 
     const isAdmin = req.user?.role === "admin";
     const isSameUser = req.user?._id?.toString() === userId;
 
-    if (!isSameUser && !isAdmin) {
-      return next(new AppError("You are not authorized to access this data", 403));
+    if (!isAdmin && !isSameUser) {
+      return next(new AppError("Unauthorized access to user data", 403));
     }
 
     const courses = await Enrollment.aggregate([
+      { $match: { user: new mongoose.Types.ObjectId(userId) } },
+
+      // Join course
       {
-        $match: { user: new Types.ObjectId(userId) },
+        $lookup: {
+          from: "courses",
+          localField: "course",
+          foreignField: "_id",
+          as: "course",
+        },
       },
+      { $unwind: "$course" },
+
+      // Join instructor (user)
+      {
+        $lookup: {
+          from: "users",
+          let: { instructorId: "$course.instructor" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $eq: ["$_id", "$$instructorId"] },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                fullName: 1,
+                profilePicture: 1,
+              },
+            },
+          ],
+          as: "instructor",
+        },
+      },
+      { $unwind: { path: "$instructor", preserveNullAndEmptyArrays: true } },
+
+      // Join category
+      {
+        $lookup: {
+          from: "categories",
+          let: { categoryIds: "$course.category" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $in: ["$_id", "$$categoryIds"] },
+              },
+            },
+            {
+              $project: {
+                _id: 1,
+                name: 1,
+              },
+            },
+          ],
+          as: "categories",
+        },
+      },
+
+      // Join progress
       {
         $lookup: {
           from: "courseprogresses",
-          localField: "course",
-          foreignField: "course",
+          let: { courseId: "$course._id", userId: "$user" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$course", "$$courseId"] },
+                    { $eq: ["$user", "$$userId"] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                completedLessons: 1,
+                totalLessons: 1,
+                percentage: 1,
+              },
+            },
+          ],
           as: "progress",
         },
       },
@@ -78,56 +153,37 @@ export const getUserCourses = async (req, res, next) => {
           preserveNullAndEmptyArrays: true,
         },
       },
-      {
-        $lookup: {
-          from: "courses",
-          localField: "course",
-          foreignField: "_id",
-          as: "courseDetails",
-        },
-      },
-      {
-        $unwind: {
-          path: "$courseDetails",
-          preserveNullAndEmptyArrays: true,
-        },
-      },
+
+      // Final projection
       {
         $project: {
           _id: 0,
-          user: 0,
-          __v: 0,
-          "progress._id": 0,
-          "progress.__v": 0,
-          "progress.user": 0,
-          "progress.course": 0,
-          "progress.createdAt": 0,
-          "progress.updatedAt": 0,
-          "courseDetails._id": 0,
-          "courseDetails.keywords": 0,
-          "courseDetails.category": 0,
-          "courseDetails.description": 0,
-          "courseDetails.instructor": 0,
-          "courseDetails.features": 0,
-          "courseDetails.lessons": 0,
-          "courseDetails.createdAt": 0,
-          "courseDetails.updatedAt": 0,
-          "courseDetails.__v": 0,
-        }
-      }
+          course: {
+            _id: "$course._id",
+            title: "$course.title",
+            price: "$course.price",
+            thumbnailImage: "$course.thumbnailImage",
+            instructor: "$instructor",
+            categories: "$categories",
+          },
+          progress: 1,
+        },
+      },
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: "Enrolled courses with progress fetched successfully",
+      message: "User enrolled courses with progress fetched successfully",
       courses,
     });
   } catch (error) {
-    next(error);
+    next(error); // <-- catch block added to handle errors gracefully
   }
 };
 
-// PAtCH /api/users/:id
+
+
+// PATCH /api/users/:id
 
 export const updateUser = async (req, res, next) => {
   try {
@@ -405,7 +461,7 @@ export const getUserWishlist = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Wishlist retrieved successfully",
-      wishlist: wishlist.items || [],
+      wishlist: wishlist?.items || [],
     });
   } catch (error) {
     next(error);
@@ -629,6 +685,22 @@ export const moveToWishlistFromCart = async (req, res, next) => {
     next(error);
   }
 };
+
+
+export const getUserCoupon = async (req, res, next) => {
+  try {
+    const {_id: userId} = req.user;
+    const user = await User.findById(userId).populate("availableCoupons");
+
+    if (!user) throw new AppError("User not found", 404);
+
+    const availableCoupons = user.availableCoupons;
+
+    res.status(200).json({success: true, message: "User coupon fetched successfully", coupons: availableCoupons});
+  } catch (error) {
+    next(error);
+  }
+}
 
 
 export const applyCoupon = async (req, res, next) => {

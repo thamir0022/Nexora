@@ -32,6 +32,7 @@ export const createOffer = async (req, res, next) => {
 			startDate,
 			endDate,
 			status = 'upcoming',
+			applicableTo,
 		} = req.body;
 
 
@@ -41,6 +42,7 @@ export const createOffer = async (req, res, next) => {
 			type,
 			discountType,
 			discountValue,
+			applicableTo,
 			startDate,
 			endDate,
 			status,

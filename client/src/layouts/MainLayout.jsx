@@ -5,7 +5,7 @@ import { Outlet } from "react-router-dom";
 
 const MainLayout = () => {
   return (
-    <main className="size-full!">
+    <main className="max-w-dvw">
       <Header />
       <Outlet />
       <Footer />

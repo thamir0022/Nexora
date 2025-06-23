@@ -1,5 +1,3 @@
-"use client"
-
 import { useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import socket from "@/config/socket"
@@ -24,6 +22,7 @@ import noNotifications from "@/assets/images/no-notifications.svg"
 const Notifications = () => {
   const { user } = useAuth()
   const [notifications, setNotifications] = useState([])
+  const [totalNotifications, setTotalNotifications] = useState(0)
   const [loading, setLoading] = useState(false)
   const [showAlert, setShowAlert] = useState(false)
   const [filter, setFilter] = useState("unread")
@@ -44,6 +43,9 @@ const Notifications = () => {
       }
     }
     getNotifications()
+
+    const unreadNotifications = notifications.reduce((acc, cur) => acc + Number(!cur.isRead), 0);
+    setTotalNotifications(unreadNotifications)
   }, [filter]);
 
   const handleMarkAsRead = async (notificationId) => {
@@ -93,6 +95,7 @@ const Notifications = () => {
     }
   }, [user?._id])
 
+
   // Auto-hide alert after 3 seconds
   useEffect(() => {
     if (showAlert) {
@@ -111,7 +114,7 @@ const Notifications = () => {
           <Button variant="ghost" size="icon" className="rounded-full relative" aria-label="Notifications">
             <CiBellOn className="size-7" />
             <span className="absolute -top-1 -right-1 bg-primary text-primary-foreground text-xs rounded-full h-5 w-5 flex items-center justify-center">
-              {notifications.length}
+              {totalNotifications}
             </span>
           </Button>
         </DropdownMenuTrigger>
