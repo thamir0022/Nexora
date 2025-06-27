@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
 import GoogleSignInButton from "@/components/GoogleSignInButton"
 import { Loader } from "lucide-react"
-import Wizard from "@/components/wizard/wizard"
+import Wizard from "@/components/wizard/index"
 
 const signUpSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
