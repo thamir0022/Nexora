@@ -16,6 +16,7 @@ import StudentSingleCoursePage from "./pages/courses/student/single-course-page/
 import MainLayout from "./layouts/MainLayout";
 import CertificatePage from "./pages/CertificatePage";
 import CoursesPage from "./pages/AllCourses";
+import NotFound from "./pages/NotFound";
 
 const App = () => {
   return (
@@ -23,6 +24,7 @@ const App = () => {
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />
+          <Route path="*" element={<NotFound />} />
           <Route path="/courses" element={<CoursesPage />} />
           <Route path="/certificate/:certificateId" element={<CertificatePage />} />
         </Route>
