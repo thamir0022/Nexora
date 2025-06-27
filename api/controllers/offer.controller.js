@@ -3,22 +3,38 @@ import { AppError } from '../utils/apperror.js';
 
 // Get All Offers
 export const getAllOffers = async (req, res, next) => {
-	try {
-		const offers = await Offer.find().sort({ createdAt: -1 });
+  try {
+    const { instructor: queryInstructor } = req.query;
+    const user = req.user; // assuming your auth middleware attaches the user
 
+    let filter = {};
+
+    if (user?.role === "instructor") {
+      // Instructor can only see their own offers
+      filter["applicableTo.refModel"] = "Instructor";
+      filter["applicableTo.refId"] = user._id;
+    } else if (queryInstructor) {
+      // Admins or others can fetch by query
+      filter["applicableTo.refModel"] = "Instructor";
+      filter["applicableTo.refId"] = queryInstructor;
+    }
+
+    const offers = await Offer.find(filter).sort({ createdAt: -1 });
+		
 		if (!offers || offers.length === 0) {
-			throw new AppError('No offers found.', 404);
+			return res.status(404).json({ success: false, message: 'No offers found.' });
 		}
 
-		res.status(200).json({
-			success: true,
-			count: offers.length,
-			offers,
-		});
-	} catch (err) {
-		next(err);
-	}
+    res.status(200).json({
+      success: true,
+      count: offers.length,
+      offers,
+    });
+  } catch (err) {
+    next(err);
+  }
 };
+
 
 // Create Offer
 export const createOffer = async (req, res, next) => {

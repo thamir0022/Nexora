@@ -30,6 +30,6 @@ const couponSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now },
 });
 
-const Coupon = new mongoose.model("Coupon", couponSchema);
+const Coupon = mongoose.model("Coupon", couponSchema);
 
 export default Coupon;

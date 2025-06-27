@@ -4,10 +4,16 @@ import Lesson from "../models/lesson.model.js";
 import { AppError } from "../utils/apperror.js";
 import natural from "natural";
 import sw from "stopword";
-import { getSort, hasAccess } from "../utils/lib.js";
+import {
+  buildCoursePipeline,
+  buildSingleCoursePipeline,
+  calculatePagination,
+  getTotalCount,
+  hasAccess,
+  validateAndSanitizeFilters,
+} from "../utils/lib.js";
 import User from "../models/user.model.js";
 import CourseProgress from "../models/progress.model.js";
-
 
 export const getAllCourses = async (req, res, next) => {
   try {
@@ -25,260 +31,61 @@ export const getAllCourses = async (req, res, next) => {
       maxRating,
       features,
       hashtags,
-      priceType, // 'free', 'paid', 'discounted'
+      priceType,
       dateFrom,
       dateTo,
       hasOffer,
-    } = req.query
+    } = req.query;
 
-    // Validate status
-    if (!["draft", "published", "archived", "all"].includes(status)) {
-      throw new AppError("Invalid status filter", 400)
-    }
-
-    // Validate pagination parameters
-    const pageNum = Math.max(1, Number.parseInt(page))
-    const limitNum = Math.min(50, Math.max(1, Number.parseInt(limit))) // Max 50 items per page
-    const skip = (pageNum - 1) * limitNum
+    // Validate and sanitize inputs
+    const filters = validateAndSanitizeFilters({
+      status,
+      page,
+      limit,
+      query,
+      category,
+      instructor,
+      minPrice,
+      maxPrice,
+      minRating,
+      maxRating,
+      features,
+      hashtags,
+      priceType,
+      dateFrom,
+      dateTo,
+      hasOffer,
+    });
 
     // Build aggregation pipeline
-    const pipeline = []
+    const pipeline = buildCoursePipeline(filters, sortBy);
 
-    // Match stage - build filter conditions
-    const matchConditions = {}
+    // Execute aggregation with pagination
+    const [courses, totalCount] = await Promise.all([
+      Course.aggregate(pipeline),
+      getTotalCount(pipeline),
+    ]);
 
-    // Status filter
-    if (status !== "all") {
-      matchConditions.status = status
-    }
+    // Calculate pagination metadata
+    const pagination = calculatePagination(
+      totalCount,
+      filters.page,
+      filters.limit
+    );
 
-    // Text search
-    if (query.trim()) {
-      matchConditions.$text = { $search: query.trim() }
-    }
-
-    // Category filter
-    if (category) {
-      const categoryIds = Array.isArray(category) ? category : [category]
-      const validCategoryIds = categoryIds.filter(isValidObjectId)
-      if (validCategoryIds.length > 0) {
-        matchConditions.category = {
-          $in: validCategoryIds.map((id) => new mongoose.Types.ObjectId(id)),
-        }
-      }
-    }
-
-    // Instructor filter
-    if (instructor) {
-      if (isValidObjectId(instructor)) {
-        matchConditions.instructor = new mongoose.Types.ObjectId(instructor)
-      }
-    }
-
-    // Price filters
-    if (minPrice !== undefined || maxPrice !== undefined || priceType) {
-      const priceConditions = {}
-
-      if (priceType === "free") {
-        priceConditions.price = 0
-      } else if (priceType === "paid") {
-        priceConditions.price = { $gt: 0 }
-      } else if (priceType === "discounted") {
-        priceConditions.offerPrice = { $exists: true, $ne: null }
-      } else {
-        if (minPrice !== undefined) {
-          priceConditions.price = { ...priceConditions.price, $gte: Number.parseFloat(minPrice) }
-        }
-        if (maxPrice !== undefined) {
-          priceConditions.price = { ...priceConditions.price, $lte: Number.parseFloat(maxPrice) }
-        }
-      }
-
-      Object.assign(matchConditions, priceConditions)
-    }
-
-    // Rating filter
-    if (minRating !== undefined || maxRating !== undefined) {
-      const ratingConditions = {}
-      if (minRating !== undefined) {
-        ratingConditions["rating.averageRating"] = {
-          ...ratingConditions["rating.averageRating"],
-          $gte: Number.parseFloat(minRating),
-        }
-      }
-      if (maxRating !== undefined) {
-        ratingConditions["rating.averageRating"] = {
-          ...ratingConditions["rating.averageRating"],
-          $lte: Number.parseFloat(maxRating),
-        }
-      }
-      Object.assign(matchConditions, ratingConditions)
-    }
-
-    // Features filter
-    if (features) {
-      const featuresArray = Array.isArray(features) ? features : [features]
-      matchConditions.features = { $in: featuresArray }
-    }
-
-    // Hashtags filter
-    if (hashtags) {
-      const hashtagsArray = Array.isArray(hashtags) ? hashtags : [hashtags]
-      matchConditions.hashtags = { $in: hashtagsArray }
-    }
-
-    // Date range filter
-    if (dateFrom || dateTo) {
-      const dateConditions = {}
-      if (dateFrom) {
-        dateConditions.$gte = new Date(dateFrom)
-      }
-      if (dateTo) {
-        dateConditions.$lte = new Date(dateTo)
-      }
-      matchConditions.createdAt = dateConditions
-    }
-
-    // Has offer filter
-    if (hasOffer === "true") {
-      matchConditions.offerPrice = { $exists: true, $ne: null }
-    } else if (hasOffer === "false") {
-      matchConditions.$or = [{ offerPrice: { $exists: false } }, { offerPrice: null }]
-    }
-
-    // Add match stage
-    pipeline.push({ $match: matchConditions })
-
-    // Add text score for relevance sorting
-    if (query.trim() && sortBy === "relevance") {
-      pipeline.push({ $addFields: { score: { $meta: "textScore" } } })
-    }
-
-    // Add calculated fields - FIXED the $exists issue
-    pipeline.push({
-      $addFields: {
-        effectivePrice: {
-          $cond: {
-            if: { $ne: [{ $type: "$offerPrice" }, "missing"] },
-            then: "$offerPrice",
-            else: "$price",
-          },
-        },
-        discountPercentage: {
-          $cond: {
-            if: {
-              $and: [
-                { $ne: [{ $type: "$offerPrice" }, "missing"] },
-                { $ne: ["$offerPrice", null] },
-                { $gt: ["$price", 0] },
-              ],
-            },
-            then: {
-              $round: [{ $multiply: [{ $divide: [{ $subtract: ["$price", "$offerPrice"] }, "$price"] }, 100] }, 0],
-            },
-            else: 0,
-          },
-        },
-        totalLessons: { $size: "$lessons" },
-        isPopular: { $gte: ["$enrolledCount", 100] }, // Consider popular if 100+ enrollments
-        isFree: { $eq: ["$price", 0] },
-        hasDiscount: {
-          $and: [{ $ne: [{ $type: "$offerPrice" }, "missing"] }, { $ne: ["$offerPrice", null] }],
-        },
-      },
-    })
-
-    // Lookup stages for population
-    pipeline.push(
-      {
-        $lookup: {
-          from: "categories",
-          localField: "category",
-          foreignField: "_id",
-          as: "category",
-          pipeline: [{ $project: { _id: 1, name: 1 } }],
-        },
-      },
-      {
-        $lookup: {
-          from: "users",
-          localField: "instructor",
-          foreignField: "_id",
-          as: "instructor",
-          pipeline: [{ $project: { _id: 1, fullName: 1, profilePicture: 1, bio: 1 } }],
-        },
-      },
-      { $unwind: { path: "$instructor", preserveNullAndEmptyArrays: true } },
-    )
-
-    // Project stage - select fields (maintain compatibility with existing client)
-    pipeline.push({
-      $project: {
-        _id: 1,
-        title: 1,
-        category: 1,
-        description: 1,
-        price: 1,
-        offerPrice: 1,
-        offerPercentage: 1,
-        effectivePrice: 1,
-        discountPercentage: 1,
-        features: 1,
-        instructor: 1,
-        status: 1,
-        enrolledCount: 1,
-        rating: 1,
-        thumbnailImage: 1,
-        hashtags: 1,
-        totalLessons: 1,
-        isPopular: 1,
-        isFree: 1,
-        hasDiscount: 1,
-        createdAt: 1,
-        updatedAt: 1,
-        // Include score only if text search is used
-        ...(query.trim() && sortBy === "relevance" && { score: 1 }),
-      },
-    })
-
-    // Sort stage
-    pipeline.push({ $sort: getSort(sortBy) })
-
-    // Get total count before pagination
-    const countPipeline = [...pipeline, { $count: "total" }]
-    const totalResult = await Course.aggregate(countPipeline)
-    const totalCourses = totalResult.length > 0 ? totalResult[0].total : 0
-
-    // Add pagination
-    pipeline.push({ $skip: skip }, { $limit: limitNum })
-
-    // Execute aggregation
-    const courses = await Course.aggregate(pipeline)
-
-    // Calculate pagination info
-    const totalPages = Math.ceil(totalCourses / limitNum)
-    const hasNextPage = pageNum < totalPages
-    const hasPrevPage = pageNum > 1
-
-    // Response (maintaining compatibility with existing client structure)
     res.status(200).json({
       success: true,
       message: "Courses fetched successfully",
       courses,
-      totalCourses,
-      pagination: {
-        page: pageNum,
-        limit: limitNum,
-        totalPages,
-        hasNextPage,
-        hasPrevPage,
-      },
-    })
+      totalCourses: totalCount,
+      pagination,
+    });
   } catch (error) {
-    console.error("Error fetching courses:", error)
-    next(error)
+    console.error("Error fetching courses:", error);
+    next(error);
   }
-}
+};
+
 
 // GET: Single Course
 export const getCourseById = async (req, res, next) => {
@@ -295,22 +102,19 @@ export const getCourseById = async (req, res, next) => {
     // 2. Check access
     const hasUserAccess = await hasAccess(courseId, userId, role);
 
-    // 3. Fetch course
-    const course = await Course.findById(courseId)
-      .select("-keywords")
-      .populate([
-        { path: "category", select: "name" },
-        { path: "instructor", select: "fullName email profilePicture" },
-        {
-          path: "lessons",
-          select: hasUserAccess ? "" : "title description thumbnailImage",
-        },
-      ])
-      .lean();
+    // 3. Build aggregation pipeline to fetch course with offers
+    const pipeline = buildSingleCoursePipeline(courseId, hasUserAccess);
 
-    if (!course) throw new AppError("Course not found!", 404);
+    // 4. Execute aggregation
+    const courseResult = await Course.aggregate(pipeline);
+    
+    if (!courseResult || courseResult.length === 0) {
+      throw new AppError("Course not found!", 404);
+    }
 
-    // 4. Fetch progress if user has access
+    const course = courseResult[0];
+
+    // 5. Fetch progress if user has access
     let progress = null;
     if (hasUserAccess) {
       progress = await CourseProgress.findOne({ user: userId, course: courseId })
@@ -327,7 +131,7 @@ export const getCourseById = async (req, res, next) => {
       }
     }
 
-    // 5. Send response
+    // 6. Send response
     res.status(200).json({
       success: true,
       message: "Course fetched successfully",
@@ -349,7 +153,10 @@ export const getCourseProgress = async (req, res, next) => {
       throw new AppError(message, 400);
     }
 
-    let progress = await CourseProgress.findOne({ user: req.user._id, course: courseId })
+    let progress = await CourseProgress.findOne({
+      user: req.user._id,
+      course: courseId,
+    })
       .select("-_id completedLessons progressPercentage lastCompletedLesson")
       .lean();
 
@@ -369,7 +176,7 @@ export const getCourseProgress = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-}
+};
 
 export const updateLessonProgress = async (req, res, next) => {
   try {
@@ -378,16 +185,23 @@ export const updateLessonProgress = async (req, res, next) => {
     const userId = req.user._id;
 
     // ✅ Validate input
-    if (!['completed', 'uncompleted'].includes(status)) {
-      return res.status(400).json({ success: false, message: "Invalid status" });
+    if (!["completed", "uncompleted"].includes(status)) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid status" });
     }
 
     if (!isValidObjectId(courseId) || !isValidObjectId(lessonId)) {
-      return res.status(400).json({ success: false, message: "Invalid course or lesson ID" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid course or lesson ID" });
     }
 
     // ✅ Fetch or initialize progress document
-    let progress = await CourseProgress.findOne({ user: userId, course: courseId });
+    let progress = await CourseProgress.findOne({
+      user: userId,
+      course: courseId,
+    });
 
     if (!progress) {
       progress = await CourseProgress.create({
@@ -436,14 +250,10 @@ export const updateLessonProgress = async (req, res, next) => {
       message: `Lesson marked as ${status}`,
       progress,
     });
-
   } catch (error) {
     next(error);
   }
 };
-
-
-
 
 // POST: Add new course
 const REQFIELDS = ["title", "description", "price", "category", "hashtags"];
@@ -547,7 +357,6 @@ export const updateCourse = async (req, res, next) => {
     for (let key of allowedFields) {
       if (req.body[key] !== undefined) updates[key] = req.body[key];
     }
-
 
     if (Object.keys(updates).length === 0)
       throw new AppError("No valid fields provided for update.", 400);

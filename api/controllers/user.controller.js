@@ -1,4 +1,4 @@
-import mongoose, { isValidObjectId, startSession, Types } from "mongoose";
+import mongoose, { isValidObjectId } from "mongoose";
 import User from "../models/user.model.js";
 import { AppError } from "../utils/apperror.js";
 import bcrypt from "bcryptjs";
@@ -6,6 +6,7 @@ import Cart from "../models/cart.model.js";
 import Wishlist from "../models/wishlist.model.js";
 import Coupon from "../models/coupon.model.js";
 import Enrollment from "../models/enrollment.model.js";
+import { buildCartPipeline, calculateCartSummary } from "../utils/lib.js";
 
 // Helper: Pick only allowed fields from input
 const pickAllowedFields = (source, allowed) => {
@@ -308,19 +309,9 @@ export const getUserCart = async (req, res, next) => {
     if (userId != _id && req.user.role !== "admin")
       throw new AppError("You are not allowed to get this user data", 403);
 
-    const userCart = await Cart.findOne({ userId })
-      .populate("items")
-      .populate({
-        path: "items",
-        populate: {
-          path: "instructor",
-          model: "User",
-          select: "fullName profilePicture",
-        },
-      })
-      .lean();
+    const userCart = await Cart.findOne({ userId }).lean();
 
-    if (!userCart || userCart.items.length === 0) {
+    if(!userCart || !userCart.items.length){
       return res.status(200).json({
         success: true,
         message: "Cart is empty",
@@ -328,15 +319,37 @@ export const getUserCart = async (req, res, next) => {
       });
     }
 
+    // Build aggregation pipeline to get cart with offers
+    const pipeline = buildCartPipeline(userId);
+
+    // Execute aggregation
+    const cartResult = await Cart.aggregate(pipeline);
+
+    if (!cartResult || cartResult.length === 0 || !cartResult[0].items || cartResult[0].items.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Cart is empty",
+        cart: [],
+      });
+    }
+
+    const cart = cartResult[0];
+
+    // Calculate cart totals
+    const cartSummary = calculateCartSummary(cart.items);
+
     res.status(200).json({
       success: true,
       message: "Cart retrieved successfully",
-      cart: userCart.items,
+      cart: cart.items,
+      summary: cartSummary
     });
   } catch (error) {
     next(error);
   }
 };
+
+
 
 export const addToCart = async (req, res, next) => {
   try {
@@ -380,20 +393,15 @@ export const addToCart = async (req, res, next) => {
     // Save updated cart
     await cart.save();
 
-    // Populate and return updated cart
-    const populatedCart = await cart.populate({
-      path: "items",
-      populate: {
-        path: "instructor",
-        model: "User",
-        select: "fullName profilePicture",
-      },
-    });
+    const pipeline = buildCartPipeline(userId);
+
+    // Execute aggregation
+    const cartResult = await Cart.aggregate(pipeline);
 
     res.status(200).json({
       success: true,
       message: "Course added to cart successfully",
-      cart: populatedCart.items,
+      cart: cartResult[0].items || [],
     });
   } catch (error) {
     next(error);

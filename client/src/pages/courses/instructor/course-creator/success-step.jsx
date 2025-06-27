@@ -16,7 +16,7 @@ const SuccessStep = ({ courseId, courseData }) => {
 
         <div className="space-y-3">
           <Button asChild className="w-full">
-            <Link to={`/courses/${courseId}`} className="flex items-center justify-center gap-2">
+            <Link to={`/dashboard/courses/${courseId}`} className="flex items-center justify-center gap-2">
               <Eye className="h-4 w-4" />
               View Course
             </Link>

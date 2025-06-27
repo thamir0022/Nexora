@@ -5,6 +5,7 @@ import { CiDiscount1, CiCircleCheck, CiCircleRemove, CiRedo } from "react-icons/
 import { toast } from "sonner"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
 
 
 const CouponInput = ({ courseId, originalAmount, onCouponSuccess, onCouponRemove, className }) => {
@@ -15,6 +16,7 @@ const CouponInput = ({ courseId, originalAmount, onCouponSuccess, onCouponRemove
   const [hasValidated, setHasValidated] = useState(false)
 
   const axios = useAxiosPrivate()
+  const {user} = useAuth();
 
   const validateCoupon = async () => {
     if (couponCode.length < 4 || !couponCode.trim()) return
@@ -24,7 +26,7 @@ const CouponInput = ({ courseId, originalAmount, onCouponSuccess, onCouponRemove
     setHasValidated(true)
 
     try {
-      const { data } = await axios.post("/users/coupon", {
+      const { data } = await axios.post(`/users/${user._id}/coupon`, {
         code: couponCode.trim(),
         orderAmount: originalAmount,
         courseId: courseId,

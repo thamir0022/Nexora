@@ -105,8 +105,8 @@ const Wizard = ({ open, onOpenChange, email }) => {
       <AlertDialog open={showExitConfirm} onOpenChange={setShowExitConfirm}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to exit?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-center">Are you sure you want to exit?</AlertDialogTitle>
+            <AlertDialogDescription className="text-center">
               Your progress will be lost and you'll need to start the registration process again.
             </AlertDialogDescription>
           </AlertDialogHeader>

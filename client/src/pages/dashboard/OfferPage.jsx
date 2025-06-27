@@ -1,10 +1,11 @@
+"use client"
+
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { Controller, useForm } from "react-hook-form"
 import { z } from "zod"
 import { format } from "date-fns"
-import { Search, X, Plus, Calendar, Percent, Clock, Loader2, Check, Trash2, ChevronDown } from "lucide-react"
-import { FaRupeeSign } from "react-icons/fa"
+import { Search, X, Plus, Calendar, Percent, Clock, Loader2, Check, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,12 +24,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { DataTable } from "@/components/datatable/data-table"
+import MultiSelectCombobox from "@/components/MultiselectCompobox"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { cn } from "@/lib/utils"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useAuth } from "@/hooks/useAuth"
 
 // Validation schema
 const offerSchema = z
@@ -48,98 +49,8 @@ const offerSchema = z
     path: ["endDate"],
   })
 
-// Multi-select combobox component
-const MultiSelectCombobox = ({ data = [], loading, selectedValues = [], onSelectionChange, placeholder, type }) => {
-  const [open, setOpen] = useState(false)
-
-  console.log({ data, selectedValues })
-
-  const getDisplayName = (item) => {
-    switch (type) {
-      case "course":
-        return item.title || item.name
-      case "category":
-        return item.name
-      case "instructor":
-        return item.name || item.fullName || `${item.firstName} ${item.lastName}`.trim()
-      default:
-        return item.name || item.title
-    }
-  }
-
-  // Ensure data is always an array
-  const safeData = Array.isArray(data) ? data : []
-
-  return (
-    <div className="space-y-2">
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" role="combobox" className="w-full justify-between">
-            {selectedValues.length > 0
-              ? `${selectedValues.length} ${type}${selectedValues.length > 1 ? "s" : ""} selected`
-              : placeholder}
-            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-full p-0" align="start">
-          <Command>
-            <CommandInput placeholder={`Search ${type}s...`} />
-            <CommandList>
-              <CommandEmpty>{loading ? `Loading ${type}s...` : `No ${type}s found.`}</CommandEmpty>
-              <CommandGroup>
-                {safeData.map((item) => (
-                  <CommandItem
-                    key={item._id}
-                    value={item._id}
-                    onSelect={(currentValue) => {
-                      const newValues = selectedValues.includes(currentValue)
-                        ? selectedValues.filter((value) => value !== currentValue)
-                        : [...selectedValues, currentValue]
-                      onSelectionChange(newValues)
-                      // Don't close the popover to allow multiple selections
-                    }}
-                  >
-                    <Check
-                      className={cn("mr-2 h-4 w-4", selectedValues.includes(item._id) ? "opacity-100" : "opacity-0")}
-                    />
-                    {getDisplayName(item)}
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-
-      {selectedValues.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {selectedValues.map((valueId) => {
-            const item = safeData.find((d) => d._id === valueId)
-            if (!item) return null
-            return (
-              <Badge key={valueId} variant="secondary" className="text-xs">
-                {getDisplayName(item)}
-                <button
-                  type="button"
-                  className="ml-1 hover:bg-secondary-foreground/20 rounded-full"
-                  onClick={() => {
-                    const newValues = selectedValues.filter((v) => v !== valueId)
-                    onSelectionChange(newValues)
-                  }}
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </Badge>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
 // Offer form component
-const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onDelete }) => {
+const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onDelete, user }) => {
   const [typeData, setTypeData] = useState({
     courses: [],
     categories: [],
@@ -151,17 +62,39 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
   const watchedType = form.watch("type")
   const watchedApplicableTo = form.watch("applicableTo") || []
 
+  // Check if user is instructor
+  const isInstructor = user?.role === "instructor"
+
+  // Get available offer types based on user role
+  const getAvailableOfferTypes = () => {
+    if (isInstructor) {
+      return [
+        { value: "course", label: "Course Discount" },
+        { value: "instructor", label: "Instructor Discount" },
+      ]
+    }
+
+    return [
+      { value: "global", label: "Global Discount" },
+      { value: "course", label: "Course Discount" },
+      { value: "category", label: "Category Discount" },
+      { value: "instructor", label: "Instructor Discount" },
+      { value: "first-time", label: "First Time User" },
+    ]
+  }
+
   // Fetch data when type is selected
   const fetchTypeData = async (type) => {
     if (!["course", "category", "instructor"].includes(type)) return
-    if (typeData[`${type}s`].length > 0) return // Already loaded
+    if (typeData[`${type}s`].length > 0) return
 
     setLoadingTypeData(true)
     try {
       let endpoint = ""
       switch (type) {
         case "course":
-          endpoint = "/courses"
+          // For instructors, fetch only their courses
+          endpoint = isInstructor ? `/courses/all?instructor=${user._id}` : "/courses/all"
           break
         case "category":
           endpoint = "/category"
@@ -172,12 +105,9 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
       }
 
       const response = await axios.get(endpoint)
-      console.log(`${type} response:`, response.data) // Debug log
 
       if (response.data.success) {
         let fetchedData = []
-
-        // Handle different response structures
         switch (type) {
           case "course":
             fetchedData = response.data.courses || response.data.data || []
@@ -191,8 +121,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           default:
             fetchedData = response.data[`${type}s`] || response.data.data || []
         }
-
-        console.log(`${type} fetched data:`, fetchedData) // Debug log
 
         setTypeData((prev) => ({
           ...prev,
@@ -210,12 +138,26 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
   // Reset applicableTo when type changes
   useEffect(() => {
     if (watchedType) {
-      form.setValue("applicableTo", [])
+      if (!isEdit) {
+        form.setValue("applicableTo", [])
+      }
       fetchTypeData(watchedType)
     }
-  }, [watchedType])
+  }, [watchedType, isEdit])
 
   const renderApplicableToField = () => {
+    // For instructor offers, don't show selection field as we'll use current instructor
+    if (watchedType === "instructor" && isInstructor) {
+      return (
+        <div className="space-y-2">
+          <Label>Instructor</Label>
+          <div className="p-2 bg-muted rounded-md">
+            <span className="text-sm">This offer will be applied to your instructor profile automatically.</span>
+          </div>
+        </div>
+      )
+    }
+
     if (!["course", "category", "instructor"].includes(watchedType)) return null
 
     return (
@@ -226,7 +168,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           loading={loadingTypeData}
           selectedValues={watchedApplicableTo || []}
           onSelectionChange={(values) => {
-            console.log('Selection changed:', values) // Debug log
             form.setValue("applicableTo", values, { shouldValidate: true })
           }}
           placeholder={`Select ${watchedType}s...`}
@@ -260,11 +201,11 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
                   <SelectValue placeholder="Select offer type" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="global">Global Discount</SelectItem>
-                  <SelectItem value="course">Course Discount</SelectItem>
-                  <SelectItem value="category">Category Discount</SelectItem>
-                  <SelectItem value="instructor">Instructor Discount</SelectItem>
-                  <SelectItem value="first-time">First Time User</SelectItem>
+                  {getAvailableOfferTypes().map((type) => (
+                    <SelectItem key={type.value} value={type.value}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             )}
@@ -369,7 +310,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
             </Select>
           )}
         />
-
       </div>
 
       <div className="flex gap-2 pt-4">
@@ -396,7 +336,7 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           </Button>
         )}
       </div>
-    </form >
+    </form>
   )
 }
 
@@ -408,8 +348,6 @@ const OfferManagementPage = () => {
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-
-  // Alert dialogs
   const [alertConfig, setAlertConfig] = useState({
     open: false,
     title: "",
@@ -420,6 +358,10 @@ const OfferManagementPage = () => {
   })
 
   const axios = useAxiosPrivate()
+  const { user } = useAuth()
+
+  // Check if user is instructor
+  const isInstructor = user?.role === "instructor"
 
   // Form setup
   const createForm = useForm({
@@ -532,9 +474,30 @@ const OfferManagementPage = () => {
     const fetchOffers = async () => {
       try {
         setLoading(true)
-        const response = await axios.get("/offers")
+        // For instructors, fetch only their offers
+        const endpoint = isInstructor ? `/offers?instructor=${user._id}` : "/offers"
+
+        const response = await axios.get(endpoint)
         if (response.data.success) {
-          setOffers(response.data.offers || [])
+          let fetchedOffers = response.data.offers || []
+
+          // Additional filtering for instructors to ensure they only see their own offers
+          if (isInstructor) {
+            fetchedOffers = fetchedOffers.filter((offer) => {
+              // Show instructor offers that belong to this instructor
+              if (offer.type === "instructor") {
+                return offer.applicableTo?.some((item) => item.refModel === "Instructor" && item.refId === user._id)
+              }
+              // Show course offers that belong to this instructor's courses
+              if (offer.type === "course") {
+                // This assumes the backend already filtered by instructor
+                return true
+              }
+              return false
+            })
+          }
+
+          setOffers(fetchedOffers)
         } else {
           toast.error(response.data.message || "Failed to fetch offers")
         }
@@ -544,8 +507,11 @@ const OfferManagementPage = () => {
         setLoading(false)
       }
     }
-    fetchOffers()
-  }, [axios])
+
+    if (user?._id) {
+      fetchOffers()
+    }
+  }, [axios, user, isInstructor])
 
   // Filter offers
   const filteredOffers = useMemo(() => {
@@ -568,17 +534,28 @@ const OfferManagementPage = () => {
   }
 
   const formatApplicableTo = (data, type) => {
+    // For instructor offers by instructors, automatically use current instructor
+    if (type === "instructor" && isInstructor) {
+      return [
+        {
+          refModel: "Instructor",
+          refId: user._id,
+        },
+      ]
+    }
+
     if (!data.applicableTo?.length) return []
 
-    let applicableToArray = []
-    if (type === "course") {
-      applicableToArray = data.applicableTo.map((id) => ({ refModel: "Course", refId: id }))
-    } else if (type === "category") {
-      applicableToArray = data.applicableTo.map((id) => ({ refModel: "Category", refId: id }))
-    } else if (type === "instructor") {
-      applicableToArray = data.applicableTo.map((id) => ({ refModel: "Instructor", refId: id }))
+    const modelMap = {
+      course: "Course",
+      category: "Category",
+      instructor: "Instructor",
     }
-    return applicableToArray
+
+    return data.applicableTo.map((id) => ({
+      refModel: modelMap[type],
+      refId: id,
+    }))
   }
 
   // Event handlers
@@ -718,13 +695,32 @@ const OfferManagementPage = () => {
     })
   }
 
+  // Custom dialog close handler for edit dialog
+  const handleManageDialogOpenChange = (open) => {
+    // Only allow closing if not interacting with dropdown
+    if (!open) {
+      // Check if a dropdown is currently open
+      const hasOpenDropdown = document.querySelector('[data-state="open"]')
+      if (!hasOpenDropdown) {
+        setIsManageDialogOpen(false)
+        setSelectedOffer(null)
+      }
+    } else {
+      setIsManageDialogOpen(open)
+    }
+  }
+
   return (
     <div className="container mx-auto p-4">
       <div className="space-y-2 mb-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Offer Management</h1>
-            <p className="text-muted-foreground">Create and manage promotional offers</p>
+            <h1 className="text-2xl font-bold">{isInstructor ? "My Offers" : "Offer Management"}</h1>
+            <p className="text-muted-foreground">
+              {isInstructor
+                ? "Create and manage your course and instructor offers"
+                : "Create and manage promotional offers"}
+            </p>
           </div>
           <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
             <Plus className="h-4 w-4" />
@@ -761,24 +757,53 @@ const OfferManagementPage = () => {
       />
 
       {/* Create Offer Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={() => { }}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} modal={false}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Offer</DialogTitle>
-            <DialogDescription>Create a new promotional offer for your platform</DialogDescription>
+            <DialogDescription>
+              {isInstructor
+                ? "Create a new promotional offer for your courses or instructor profile"
+                : "Create a new promotional offer for your platform"}
+            </DialogDescription>
           </DialogHeader>
           <OfferForm
             form={createForm}
             onSubmit={handleCreateOffer}
             isSubmitting={isSubmitting}
             onCancel={handleCreateCancel}
+            user={user}
           />
         </DialogContent>
       </Dialog>
 
       {/* Manage Offer Dialog */}
-      <Dialog open={isManageDialogOpen} onOpenChange={() => { }}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <Dialog open={isManageDialogOpen} onOpenChange={handleManageDialogOpenChange} modal={false}>
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          onPointerDownOutside={(e) => {
+            // Prevent closing when clicking on dropdown elements
+            const target = e.target
+            if (
+              target?.closest("[data-radix-popper-content-wrapper]") ||
+              target?.closest("[data-radix-select-content]") ||
+              target?.closest("[data-radix-popover-content]")
+            ) {
+              e.preventDefault()
+            }
+          }}
+          onInteractOutside={(e) => {
+            // Prevent closing when interacting with dropdown elements
+            const target = e.target
+            if (
+              target?.closest("[data-radix-popper-content-wrapper]") ||
+              target?.closest("[data-radix-select-content]") ||
+              target?.closest("[data-radix-popover-content]")
+            ) {
+              e.preventDefault()
+            }
+          }}
+        >
           <DialogHeader>
             <DialogTitle>Manage Offer</DialogTitle>
             <DialogDescription>Edit offer details or delete the offer</DialogDescription>
@@ -791,6 +816,7 @@ const OfferManagementPage = () => {
               isEdit={true}
               onCancel={handleManageCancel}
               onDelete={handleDeleteClick}
+              user={user}
             />
           )}
         </DialogContent>

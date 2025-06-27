@@ -5,6 +5,7 @@ import { Separator } from "@/components/ui/separator"
 import { FaRupeeSign } from "react-icons/fa"
 
 const ReviewStep = ({ courseData }) => {
+  console.log(courseData);
 
   // Format price with currency
   const formatPrice = (price) => {
@@ -230,7 +231,6 @@ const ReviewStep = ({ courseData }) => {
                   alt={courseData.title}
                   className="w-full h-auto rounded-lg shadow-md border border-gray-200"
                 />
-                <div className="absolute inset-0 bg-black bg-opacity-0 hover:bg-opacity-10 transition-all duration-200 rounded-lg"></div>
               </div>
             </div>
           </CardContent>

@@ -427,7 +427,7 @@ const AdminOverview = () => {
                   <div className="flex items-center gap-1">
                     <Avatar className="size-10">
                       <AvatarImage src={profilePicture} />
-                      <AvatarFallback className="capitalize">{fullName.at(1)}</AvatarFallback>
+                      <AvatarFallback className="capitalize">{fullName?.at(0) || "U"}</AvatarFallback>
                     </Avatar>
                     <div className="">
                       <div className="flex gap-1">

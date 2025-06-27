@@ -23,7 +23,6 @@ const paymentSchema = new Schema(
     },
     paymentMethod: {
       type: String,
-      enum: ['credit_card', 'debit_card', 'paypal', 'upi', 'net_banking', 'razorpay'],
       required: true,
     },
     paymentStatus: {

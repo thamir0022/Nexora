@@ -1,6 +1,21 @@
 import { Router } from "express";
 import { verifyUser } from "../utils/verifyUser.js";
-import { deleteUser, getUserCart, getUser, getUserCourses, updateUser, addToCart, removeFromCart, getUserWishlist, addToWishlist, removeFromWishlist, addToCartFromWishlist, moveToWishlistFromCart, applyCoupon, getUserCoupon } from "../controllers/user.controller.js";
+import {
+  deleteUser,
+  getUserCart,
+  getUser,
+  getUserCourses,
+  updateUser,
+  addToCart,
+  removeFromCart,
+  getUserWishlist,
+  addToWishlist,
+  removeFromWishlist,
+  addToCartFromWishlist,
+  moveToWishlistFromCart,
+  applyCoupon,
+  getUserCoupon,
+} from "../controllers/user.controller.js";
 import { getUserCertificates } from "../controllers/certificate.controller.js";
 
 const router = Router();

@@ -1,5 +1,19 @@
-import { CiBellOn, CiBoxes, CiChat1, CiChat2, CiDiscount1, CiFileOn, CiFolderOn, CiGrid42, CiHeart, CiHome, CiSettings, CiShoppingTag, CiUser, CiViewList } from "react-icons/ci";
-
+import {
+  CiBellOn,
+  CiBoxes,
+  CiChat1,
+  CiChat2,
+  CiDiscount1,
+  CiFileOn,
+  CiFolderOn,
+  CiGrid42,
+  CiHeart,
+  CiHome,
+  CiSettings,
+  CiShoppingTag,
+  CiUser,
+  CiViewList,
+} from "react-icons/ci";
 
 const sub = [
   {
@@ -65,6 +79,11 @@ const instructorNav = {
         },
       ],
     },
+    {
+      title: "Offers",
+      url: "/dashboard?tab=offers",
+      icon: CiDiscount1,
+    },
   ],
   sub,
 };
@@ -89,7 +108,7 @@ const adminNav = {
     {
       title: "Courses",
       icon: CiFolderOn,
-      url: "/dashboard?tab=courses"
+      url: "/dashboard?tab=courses",
     },
     {
       title: "Category",
@@ -110,7 +129,7 @@ const adminNav = {
       title: "Offers",
       url: "/dashboard?tab=offers",
       icon: CiDiscount1,
-    }
+    },
   ],
   sub,
 };

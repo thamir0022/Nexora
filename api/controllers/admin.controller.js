@@ -8,7 +8,13 @@ import Payment from "../models/payment.model.js";
 
 export const getAllUsers = async (req, res, next) => {
   try {
-    const { status = "all", role, sort = "desc", search, limit = 10 } = req.query;
+    const {
+      status = "all",
+      role,
+      sort = "desc",
+      search,
+      limit = 10,
+    } = req.query;
     const { role: userRole } = req.user;
 
     if (userRole !== "admin") {
@@ -56,17 +62,21 @@ export const getAllUsers = async (req, res, next) => {
   }
 };
 
-
 export const getAllCoupons = async (req, res, next) => {
   try {
     const coupons = await Coupon.find().select("-__v");
     if (!coupons) throw new AppError("No coupons found", 404);
-    res.status(200).json({ success: true, message: "Coupons fetched successfully", coupons });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Coupons fetched successfully",
+        coupons,
+      });
   } catch (error) {
     next(error);
   }
-}
-
+};
 
 export const createCoupon = async (req, res, next) => {
   try {
@@ -99,11 +109,11 @@ export const createCoupon = async (req, res, next) => {
   }
 };
 
-
 export const updateCoupon = async (req, res, next) => {
   try {
     const { couponId } = req.params;
-    if (!isValidObjectId(couponId)) throw new AppError("Invalid coupon ID", 400);
+    if (!isValidObjectId(couponId))
+      throw new AppError("Invalid coupon ID", 400);
 
     const updated = await Coupon.findByIdAndUpdate(couponId, req.body, {
       new: true,
@@ -121,22 +131,25 @@ export const updateCoupon = async (req, res, next) => {
 export const deleteCoupon = async (req, res, next) => {
   try {
     const { couponId } = req.params;
-    if (!isValidObjectId(couponId)) throw new AppError("Invalid coupon ID", 400);
+    if (!isValidObjectId(couponId))
+      throw new AppError("Invalid coupon ID", 400);
 
     const deleted = await Coupon.findByIdAhtndDelete(couponId);
     if (!deleted) throw new AppError("Coupon not found", 404);
 
-    res.status(200).json({ success: true, message: "Coupon deleted successfully" });
+    res
+      .status(200)
+      .json({ success: true, message: "Coupon deleted successfully" });
   } catch (error) {
     next(error);
   }
 };
 
-
 export const getStatistics = async (req, res, next) => {
   try {
     const { role } = req.user;
-    if (role !== "admin") throw new AppError("You should be a admin for accessing this API", 403);
+    if (role !== "admin")
+      throw new AppError("You should be a admin for accessing this API", 403);
 
     const totalUsers = await User.countDocuments();
     const totalCourses = await Course.countDocuments();
@@ -167,12 +180,13 @@ export const getStatistics = async (req, res, next) => {
   } catch (error) {
     next(error);
   }
-}
+};
 
 export const getEnrollmentStatsByMonth = async (req, res, next) => {
   try {
     const { role } = req.user;
-    if (role !== "admin") throw new AppError("You should be an admin to access this API", 403);
+    if (role !== "admin")
+      throw new AppError("You should be an admin to access this API", 403);
 
     const currentYear = new Date().getFullYear();
     const currentMonth = new Date().getMonth() + 1;
@@ -208,8 +222,18 @@ export const getEnrollmentStatsByMonth = async (req, res, next) => {
     ]);
 
     const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
     ];
 
     const chartData = months.slice(0, currentMonth).map((m, index) => {
@@ -222,7 +246,6 @@ export const getEnrollmentStatsByMonth = async (req, res, next) => {
     next(err);
   }
 };
-
 
 export const getUserStatsByMonth = async (req, res, next) => {
   try {
@@ -261,8 +284,18 @@ export const getUserStatsByMonth = async (req, res, next) => {
     ]);
 
     const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
     ];
 
     const chartData = months.slice(0, currentMonth).map((m, index) => {
@@ -276,11 +309,11 @@ export const getUserStatsByMonth = async (req, res, next) => {
   }
 };
 
-
 export const getRevenueStats = async (req, res, next) => {
   try {
     const { role } = req.user;
-    if (role !== "admin") throw new AppError("You should be an admin to access this API", 403);
+    if (role !== "admin")
+      throw new AppError("You should be an admin to access this API", 403);
 
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -320,8 +353,18 @@ export const getRevenueStats = async (req, res, next) => {
     ]);
 
     const months = [
-      "January", "February", "March", "April", "May", "June",
-      "July", "August", "September", "October", "November", "December",
+      "January",
+      "February",
+      "March",
+      "April",
+      "May",
+      "June",
+      "July",
+      "August",
+      "September",
+      "October",
+      "November",
+      "December",
     ];
 
     const chartData = months.slice(0, currentMonthIndex + 1).map((m, index) => {
@@ -339,22 +382,26 @@ export const getRevenueStats = async (req, res, next) => {
   }
 };
 
-
 export const getAllEnrollments = async (req, res, next) => {
   try {
     const { role } = req.user;
     const { limit } = req.query;
-    if (role !== "admin") throw new AppError("You should be an admin to access this API", 403);
+    if (role !== "admin")
+      throw new AppError("You should be an admin to access this API", 403);
 
-    const query = Enrollment.find().select("-__v").populate([{
-      path: "course",
-      select: "title thumbnailImage",
-    },
-    {
-      path: "user",
-      select: "fullName profilePicture",
-    }
-    ]).sort({ createdAt: -1 });
+    const query = Enrollment.find()
+      .select("-__v")
+      .populate([
+        {
+          path: "course",
+          select: "title thumbnailImage",
+        },
+        {
+          path: "user",
+          select: "fullName profilePicture",
+        },
+      ])
+      .sort({ createdAt: -1 });
 
     if (limit) {
       query.limit(Number(limit));
@@ -362,18 +409,24 @@ export const getAllEnrollments = async (req, res, next) => {
 
     const enrollments = await query;
     if (!enrollments) throw new AppError("No enrollments found", 404);
-    res.status(200).json({ success: true, message: "Enrollments fetched successfully", enrollments });
+    res
+      .status(200)
+      .json({
+        success: true,
+        message: "Enrollments fetched successfully",
+        enrollments,
+      });
   } catch (error) {
     next(error);
   }
-}
-
+};
 
 export const getAllOrders = async (req, res, next) => {
   try {
     const { role } = req.user;
     const { limit, status, from, to } = req.query;
-    if (role !== "admin") throw new AppError("You should be an admin to access this API", 403);
+    if (role !== "admin")
+      throw new AppError("You should be an admin to access this API", 403);
 
     let filter = {};
 
@@ -384,34 +437,40 @@ export const getAllOrders = async (req, res, next) => {
     if (from) {
       filter.createdAt = {
         $gte: from,
-      }
+      };
     }
 
     if (to) {
       filter.createdAt = {
         $lte: to,
-      }
+      };
     }
 
-    const query = Payment.find(filter).select("-__v").populate([{
-      path: "course",
-      select: "title thumbnailImage",
-    },
-    {
-      path: "user",
-      select: "fullName profilePicture",
-    }
-    ]).sort({ createdAt: -1 });
+    const query = Payment.find(filter)
+      .select("-__v")
+      .populate([
+        {
+          path: "course",
+          select: "title thumbnailImage",
+        },
+        {
+          path: "user",
+          select: "fullName profilePicture",
+        },
+      ])
+      .sort({ createdAt: -1 });
 
     if (limit) {
       query.limit(Number(limit));
     }
 
     const orders = await query;
-    
+
     if (!orders) throw new AppError("No orders found", 404);
-    res.status(200).json({ success: true, message: "Orders fetched successfully", orders });
+    res
+      .status(200)
+      .json({ success: true, message: "Orders fetched successfully", orders });
   } catch (error) {
     next(error);
   }
-}
+};

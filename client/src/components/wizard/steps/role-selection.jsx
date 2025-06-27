@@ -40,7 +40,7 @@ export const RoleSelection = ({ formData, updateFormData, nextStep, previousStep
           onValueChange={setSelectedRole}
           variant="outline"
           size="lg"
-          className="grid grid-cols-2 gap-4"
+          className="w-52 grid grid-cols-2"
         >
           <ToggleGroupItem value="student" className="h-20 flex-col space-y-2" aria-label="Select student role">
             <span className="text-2xl">👨‍🎓</span>
@@ -54,9 +54,6 @@ export const RoleSelection = ({ formData, updateFormData, nextStep, previousStep
       </div>
 
       <DialogFooter className="flex justify-between">
-        <Button variant="outline" onClick={previousStep}>
-          Back
-        </Button>
         <Button onClick={handleContinue} disabled={!selectedRole}>
           Continue
         </Button>

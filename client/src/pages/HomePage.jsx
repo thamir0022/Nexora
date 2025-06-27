@@ -1,26 +1,29 @@
-import HeroCarousel from "@/components/HeroCarousel"
-import ThumbnailSkeleton from "@/components/skeltons/Thumbnail"
-import Thumbnail from "@/components/Thumbnail"
-import { useCart } from "@/context/CartContext"
-import { useWishlist } from "@/context/WishlistContext"
-import useAxiosPrivate from "@/hooks/useAxiosPrivate"
-import { useEffect, useState } from "react"
-import { toast } from "sonner"
-import { useAuth } from "@/hooks/useAuth"
-import { CategorySlider } from "@/components/CategorySlider"
-import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight } from "lucide-react"
+import HeroCarousel from "@/components/HeroCarousel";
+import ThumbnailSkeleton from "@/components/skeltons/Thumbnail";
+import Thumbnail from "@/components/Thumbnail";
+import { useCart } from "@/context/CartContext";
+import { useWishlist } from "@/context/WishlistContext";
+import useAxiosPrivate from "@/hooks/useAxiosPrivate";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { CategorySlider } from "@/components/CategorySlider";
+import { Button } from "@/components/ui/button";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 const HomePage = () => {
-  const [courses, setCourses] = useState({ allCourses: [], userEnrolledCourses: [] })
-  const [loading, setLoading] = useState(false)
-  const axios = useAxiosPrivate()
-  const [categories, setCategories] = useState([])
-  const { cart, setCart, setOpenSheet } = useCart()
-  const { wishlist, setWishlist } = useWishlist()
-  const { user } = useAuth()
-  const [loadingCourseId, setLoadingCourseId] = useState(null)
-  const [wishlistProcessingId, setWishlistProcessingId] = useState(null)
+  const [courses, setCourses] = useState({
+    allCourses: [],
+    userEnrolledCourses: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const axios = useAxiosPrivate();
+  const [categories, setCategories] = useState([]);
+  const { cart, setCart, setOpenSheet } = useCart();
+  const { wishlist, setWishlist } = useWishlist();
+  const { user } = useAuth();
+  const [loadingCourseId, setLoadingCourseId] = useState(null);
+  const [wishlistProcessingId, setWishlistProcessingId] = useState(null);
 
   // Pagination state
   const [pagination, setPagination] = useState({
@@ -30,13 +33,13 @@ const HomePage = () => {
     totalCourses: 0,
     hasNextPage: false,
     hasPrevPage: false,
-  })
+  });
 
   // Selected category state
-  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [selectedCategory, setSelectedCategory] = useState(null);
 
   const fetchCourses = async (page = 1, categoryId = null) => {
-    setLoading(true)
+    setLoading(true);
     try {
       // Build query parameters
       const queryParams = new URLSearchParams({
@@ -45,118 +48,141 @@ const HomePage = () => {
         status: "published",
         sortBy: "newest",
         ...(categoryId && { category: categoryId }),
-      })
+      });
 
-      const [allCoursesRes, userEnrolledCoursesRes, categoriesRes] = await Promise.all([
-        axios.get(`/courses/all?${queryParams}`),
-        user?._id ? axios.get(`/users/${user._id}/courses`) : Promise.resolve({ data: { courses: [] } }),
-        axios.get("/categories"),
-      ])
+      const [allCoursesRes, userEnrolledCoursesRes, categoriesRes] =
+        await Promise.all([
+          axios.get(`/courses/all?${queryParams}`),
+          user?._id
+            ? axios.get(`/users/${user._id}/courses`)
+            : Promise.resolve({ data: { courses: [] } }),
+          axios.get("/categories"),
+        ]);
 
       setCourses({
         allCourses: allCoursesRes.data.courses || [],
         userEnrolledCourses: userEnrolledCoursesRes.data.courses || [],
-      })
+      });
 
-      setPagination(allCoursesRes.data.pagination || {})
-      setCategories(categoriesRes.data.categories || [])
+      setPagination(allCoursesRes.data.pagination || {});
+      setCategories(categoriesRes.data.categories || []);
     } catch (error) {
-      console.error("Failed to fetch courses:", error)
-      toast.error("Failed to load courses")
+      console.error("Failed to fetch courses:", error);
+      toast.error("Failed to load courses");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    fetchCourses(1, selectedCategory)
-  }, [axios, user, selectedCategory])
+    fetchCourses(1, selectedCategory);
+  }, [axios, user, selectedCategory]);
 
   const handleAddToCart = async (courseId) => {
     if (!user?._id) {
-      toast.error("Please login to add courses to cart")
-      return
+      toast.error("Please login to add courses to cart");
+      return;
     }
 
-    setLoadingCourseId(courseId)
+    setLoadingCourseId(courseId);
     try {
-      const { data } = await axios.post(`/users/${user._id}/cart/${courseId}`)
-      setCart(data.cart)
-      toast.success("Course added to cart")
+      const { data } = await axios.post(`/users/${user._id}/cart/${courseId}`);
+      setCart(data.cart);
+      toast.success("Course added to cart");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to add to cart")
+      toast.error(err?.response?.data?.message || "Failed to add to cart");
     } finally {
-      setLoadingCourseId(null)
+      setLoadingCourseId(null);
     }
-  }
+  };
 
   const handleAddToWishlist = async (courseId) => {
     if (!user?._id) {
-      toast.error("Please login to add courses to wishlist")
-      return
+      toast.error("Please login to add courses to wishlist");
+      return;
     }
 
-    setWishlistProcessingId(courseId)
+    setWishlistProcessingId(courseId);
     try {
-      const { data } = await axios.post(`/users/${user._id}/wishlist/${courseId}`)
-      setWishlist(data.wishlist)
-      toast.success("Course added to wishlist")
+      const { data } = await axios.post(
+        `/users/${user._id}/wishlist/${courseId}`
+      );
+      setWishlist(data.wishlist);
+      toast.success("Course added to wishlist");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to add to wishlist")
+      toast.error(err?.response?.data?.message || "Failed to add to wishlist");
     } finally {
-      setWishlistProcessingId(null)
+      setWishlistProcessingId(null);
     }
-  }
+  };
 
   const handleRemoveFromWishlist = async (courseId) => {
-    if (!user?._id) return
+    if (!user?._id) return;
 
-    setWishlistProcessingId(courseId)
+    setWishlistProcessingId(courseId);
     try {
-      await axios.delete(`/users/${user._id}/wishlist/${courseId}`)
-      setWishlist((prev) => prev.filter((item) => item._id !== courseId))
-      toast.success("Removed from wishlist")
+      await axios.delete(`/users/${user._id}/wishlist/${courseId}`);
+      setWishlist((prev) => prev.filter((item) => item._id !== courseId));
+      toast.success("Removed from wishlist");
     } catch (err) {
-      toast.error(err?.response?.data?.message || "Failed to remove from wishlist")
+      toast.error(
+        err?.response?.data?.message || "Failed to remove from wishlist"
+      );
     } finally {
-      setWishlistProcessingId(null)
+      setWishlistProcessingId(null);
     }
-  }
+  };
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.totalPages) {
-      fetchCourses(newPage, selectedCategory)
+      fetchCourses(newPage, selectedCategory);
     }
-  }
+  };
 
   const handleCategorySelect = (categoryId) => {
-    setSelectedCategory(categoryId)
-    setPagination((prev) => ({ ...prev, page: 1 })) // Reset to first page
-  }
+    setSelectedCategory(categoryId);
+    setPagination((prev) => ({ ...prev, page: 1 })); // Reset to first page
+  };
 
   const clearCategoryFilter = () => {
-    setSelectedCategory(null)
-    setPagination((prev) => ({ ...prev, page: 1 }))
-  }
+    setSelectedCategory(null);
+    setPagination((prev) => ({ ...prev, page: 1 }));
+  };
 
-  const selectedCategoryName = selectedCategory ? categories.find((cat) => cat._id === selectedCategory)?.name : null
+  const selectedCategoryName = selectedCategory
+    ? categories.find((cat) => cat._id === selectedCategory)?.name
+    : null;
 
   return (
     <section className="">
       {/* Hero Carousel */}
       <HeroCarousel />
 
+      {/* Category Slider */}
+      <CategorySlider
+        categories={categories}
+        onCategorySelect={handleCategorySelect}
+        selectedCategory={selectedCategory}
+      />
+
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="text-center mb-8">
           <h2 className="text-2xl font-semibold mb-2">
-            {selectedCategoryName ? `${selectedCategoryName} Courses` : "Explore Top-Rated Programs"}
+            {selectedCategoryName
+              ? `${selectedCategoryName} Courses`
+              : "Explore Top-Rated Programs"}
           </h2>
           {pagination.totalCourses > 0 && (
             <p className="text-muted-foreground">
-              Showing {courses.allCourses.length} of {pagination.totalCourses} courses
+              Showing {courses.allCourses.length} of {pagination.totalCourses}{" "}
+              courses
               {selectedCategoryName && (
-                <Button variant="link" onClick={clearCategoryFilter} className="ml-2 p-0 h-auto text-sm">
+                <Button
+                  variant="link"
+                  onClick={clearCategoryFilter}
+                  className="ml-2 p-0 h-auto text-sm"
+                >
                   (Clear filter)
                 </Button>
               )}
@@ -179,15 +205,14 @@ const HomePage = () => {
                 category,
                 instructor,
                 price,
-                offerPrice,
                 effectivePrice,
-                discountPercentage,
+                offer,
                 totalLessons,
                 isPopular,
                 isFree,
                 hasDiscount,
                 enrolledCount,
-              } = course
+              } = course;
 
               return (
                 <Thumbnail
@@ -200,16 +225,17 @@ const HomePage = () => {
                   category={category}
                   instructor={instructor}
                   price={price}
-                  offerPrice={offerPrice}
+                  offer={offer}
                   effectivePrice={effectivePrice}
-                  discountPercentage={discountPercentage}
                   totalLessons={totalLessons}
                   isPopular={isPopular}
                   isFree={isFree}
                   hasDiscount={hasDiscount}
                   enrolledCount={enrolledCount}
                   role={user?.role}
-                  isEnrolled={courses.userEnrolledCourses.some((item) => item.course._id === _id)}
+                  isEnrolled={courses.userEnrolledCourses.some(
+                    (item) => item.course._id === _id
+                  )}
                   isInCart={cart.some((item) => item._id === _id)}
                   isInWishlist={wishlist.some((item) => item._id === _id)}
                   addingToCart={loadingCourseId === _id}
@@ -219,7 +245,7 @@ const HomePage = () => {
                   onRemoveFromWishlist={handleRemoveFromWishlist}
                   openCart={() => setOpenSheet(true)}
                 />
-              )
+              );
             })
           ) : (
             <div className="col-span-full text-center py-10">
@@ -229,7 +255,11 @@ const HomePage = () => {
                   : "No courses available at the moment."}
               </p>
               {selectedCategoryName && (
-                <Button variant="outline" onClick={clearCategoryFilter} className="mt-4">
+                <Button
+                  variant="outline"
+                  onClick={clearCategoryFilter}
+                  className="mt-4"
+                >
                   View All Courses
                 </Button>
               )}
@@ -252,31 +282,36 @@ const HomePage = () => {
 
             <div className="flex items-center gap-1">
               {/* Show page numbers */}
-              {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
-                let pageNum
-                if (pagination.totalPages <= 5) {
-                  pageNum = i + 1
-                } else if (pagination.page <= 3) {
-                  pageNum = i + 1
-                } else if (pagination.page >= pagination.totalPages - 2) {
-                  pageNum = pagination.totalPages - 4 + i
-                } else {
-                  pageNum = pagination.page - 2 + i
-                }
+              {Array.from(
+                { length: Math.min(5, pagination.totalPages) },
+                (_, i) => {
+                  let pageNum;
+                  if (pagination.totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (pagination.page <= 3) {
+                    pageNum = i + 1;
+                  } else if (pagination.page >= pagination.totalPages - 2) {
+                    pageNum = pagination.totalPages - 4 + i;
+                  } else {
+                    pageNum = pagination.page - 2 + i;
+                  }
 
-                return (
-                  <Button
-                    key={pageNum}
-                    variant={pagination.page === pageNum ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => handlePageChange(pageNum)}
-                    disabled={loading}
-                    className="w-10 h-10"
-                  >
-                    {pageNum}
-                  </Button>
-                )
-              })}
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={
+                        pagination.page === pageNum ? "default" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => handlePageChange(pageNum)}
+                      disabled={loading}
+                      className="w-10 h-10"
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                }
+              )}
             </div>
 
             <Button
@@ -294,19 +329,13 @@ const HomePage = () => {
         {/* Pagination Info */}
         {pagination.totalCourses > 0 && (
           <div className="text-center text-sm text-muted-foreground mb-8">
-            Page {pagination.page} of {pagination.totalPages} • {pagination.totalCourses} total courses
+            Page {pagination.page} of {pagination.totalPages} •{" "}
+            {pagination.totalCourses} total courses
           </div>
         )}
       </div>
-
-      {/* Category Slider */}
-      <CategorySlider
-        categories={categories}
-        onCategorySelect={handleCategorySelect}
-        selectedCategory={selectedCategory}
-      />
     </section>
-  )
-}
+  );
+};
 
-export default HomePage
+export default HomePage;
