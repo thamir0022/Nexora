@@ -2,6 +2,10 @@ import { config } from "dotenv";
 
 config({ path: `.env.${process.env.NODE_ENV || "development"}.local` });
 
+console.log("RAZORPAY_API_KEY:", process.env.RAZORPAY_API_KEY);
+console.log("RAZORPAY_API_SECRET:", process.env.RAZORPAY_API_SECRET);
+
+
 export const {
   PORT,
   MONGODB_URI,
