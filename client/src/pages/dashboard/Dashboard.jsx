@@ -10,14 +10,12 @@ import OfferManagementPage from "./OfferPage";
 import CouponManagementPage from "./CouponManagementPage";
 import MyCourses from "./MyCoursePage/MyCourses";
 import Overview from "./Overview/index";
-import { useAuth } from "@/hooks/useAuth";
 import EnrollmentsList from "./EnrollmentList";
 import MyCertificatesPage from "../my-certificate-page";
 
 const Dashboard = () => {
   const [tab, setTab] = useState("");
   const [searchParams] = useSearchParams();
-  const { user } = useAuth();
 
   useEffect(() => {
     const tabParam = searchParams.get("tab");

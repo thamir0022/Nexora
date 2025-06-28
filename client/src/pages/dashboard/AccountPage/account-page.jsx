@@ -1,3 +1,5 @@
+"use client"
+
 import { useAuth } from "@/hooks/useAuth"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { useEffect, useState } from "react"
@@ -19,40 +21,40 @@ import { MyCoursesTab } from "./my-courses-tab"
 import { RevenueTab } from "./revenue-tab"
 import { EditProfileDialog } from "./edit-profile-dialog"
 
-import {
-  CalendarDays,
-  Mail,
-  Phone,
-  Wallet,
-  BookOpen,
-  User,
-  ShieldCheck,
-  Edit,
-  GraduationCap,
-  TrendingUp,
-} from "lucide-react"
-import { CiCalendar, CiEdit, CiMail, CiPhone, CiUser, CiWallet } from "react-icons/ci"
+import { BookOpen, ShieldCheck, GraduationCap, TrendingUp } from "lucide-react"
+import { CiCalendar, CiMail, CiPhone, CiUser, CiWallet } from "react-icons/ci"
 
 const AccountPage = () => {
   const [userData, setUserData] = useState(null)
   const [qualifications, setQualifications] = useState(null)
-  const [wallet, setWallet] = useState({ balance: 0 });
+  const [wallet, setWallet] = useState({ balance: 0 })
   const [isLoading, setIsLoading] = useState(true)
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
 
   const { user } = useAuth()
   const axios = useAxiosPrivate()
 
+  // Check if user should have wallet access
+  const shouldFetchWallet = user?.role === "student" || user?.role === "instructor"
+
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const [userResponse, qualResponse, walletRes] = await Promise.all([
+        // Prepare promises array
+        const promises = [
           axios.get(`/users/${user._id}`),
           user.role === "instructor"
             ? axios.get(`/instructors/qualifications/${user._id}`).catch(() => null)
             : Promise.resolve(null),
-          axios.get("/wallet")
-        ])
+        ]
+
+        // Only add wallet fetch for students and instructors
+        if (shouldFetchWallet) {
+          promises.push(axios.get("/wallet"))
+        }
+
+        const responses = await Promise.all(promises)
+        const [userResponse, qualResponse, walletRes] = responses
 
         if (!userResponse.data.success) {
           toast.error(userResponse.data.message)
@@ -63,7 +65,9 @@ const AccountPage = () => {
         if (qualResponse?.data?.success) {
           setQualifications(qualResponse.data.qualifications)
         }
-        if (walletRes?.data?.success) {
+
+        // Only set wallet data if it was fetched
+        if (shouldFetchWallet && walletRes?.data?.success) {
           setWallet(walletRes.data.wallet)
         }
       } catch (error) {
@@ -72,8 +76,11 @@ const AccountPage = () => {
         setIsLoading(false)
       }
     }
-    fetchUserData()
-  }, [user._id, user.role])
+
+    if (user?._id) {
+      fetchUserData()
+    }
+  }, [user._id, user.role, shouldFetchWallet, axios])
 
   const formatDate = (dateString) => {
     return dateString ? format(new Date(dateString), "MMM d, yyyy") : "N/A"
@@ -131,9 +138,15 @@ const AccountPage = () => {
                 </div>
 
                 <div className="flex items-center gap-3">
-                  {userData.role === "student" && (
+                  {/* Only show wallet for students and instructors */}
+                  {shouldFetchWallet && (
                     <Badge variant="outline" className="flex items-center gap-2 px-3 py-2">
-                      <CiWallet className="size-5!" /> {wallet.balance.toLocaleString("en", { style: "currency", currency: "INR", minimumFractionDigits: 2 })}
+                      <CiWallet className="size-5!" />
+                      {wallet.balance.toLocaleString("en", {
+                        style: "currency",
+                        currency: "INR",
+                        minimumFractionDigits: 2,
+                      })}
                     </Badge>
                   )}
                   <Button onClick={() => setIsEditDialogOpen(true)} size="sm" className="flex-1">
