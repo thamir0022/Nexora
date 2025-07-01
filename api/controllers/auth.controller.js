@@ -135,7 +135,7 @@ export const registerUser = async (req, res, next) => {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
         sameSite: "None", // important for frontend/backend on different domains
-        path: "/auth/refresh", // restrict path
+        path: "/",
         maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
