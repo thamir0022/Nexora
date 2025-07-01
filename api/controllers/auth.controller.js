@@ -188,12 +188,12 @@ export const signIn = async (req, res, next) => {
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user._id });
 
-    // ✅ Set refresh token in HTTP-only secure cookie
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: "None", // important for frontend/backend on different domains
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     // ✅ Send access token in JSON response
@@ -308,12 +308,12 @@ export const googleAuth = async (req, res, next) => {
     const accessToken = generateAccessToken({ id: user._id, role: user.role });
     const refreshToken = generateRefreshToken({ id: user._id });
 
-    // Set refresh token cookie
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: "None", // important for frontend/backend on different domains
+      path: "/",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     const { password, ...userData } = user.toObject();
@@ -336,7 +336,7 @@ export const signOut = (req, res, next) => {
     res.clearCookie("refresh_token", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
-      sameSite: "Strict",
+      sameSite: "None",
     });
 
     return res
