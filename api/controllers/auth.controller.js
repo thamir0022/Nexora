@@ -40,7 +40,7 @@ export const sentOtp = async (req, res, next) => {
 
     const newOTP = await Otp.create({
       email,
-      otp: generateOtp()
+      otp: generateOtp(),
     });
 
     await transporter.sendMail({
@@ -92,17 +92,16 @@ export const registerUser = async (req, res, next) => {
     const { userId, fullName, email, mobile, password, role } = req.body;
 
     // Validate required fields
-    if (!userId || !fullName || !email || !mobile || !password || !role) throw new AppError("All fields are required", 400);
+    if (!userId || !fullName || !email || !mobile || !password || !role)
+      throw new AppError("All fields are required", 400);
 
-
-    if (!["student", "instructor"].includes(role)) throw new AppError("Invalid role selected", 400);
-
+    if (!["student", "instructor"].includes(role))
+      throw new AppError("Invalid role selected", 400);
 
     // Find user by ID
     const existingUser = await User.findById(userId);
     if (!existingUser || existingUser.email !== email)
       throw new AppError("User not found or email mismatch", 404);
-
 
     // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -113,7 +112,8 @@ export const registerUser = async (req, res, next) => {
     existingUser.password = hashedPassword;
     existingUser.role = role;
     existingUser.status = role === "student" ? "active" : "pending";
-    existingUser.availableCoupons = role === "student" ? ["684a75668970c56456b8ee57"] : [];
+    existingUser.availableCoupons =
+      role === "student" ? ["684a75668970c56456b8ee57"] : [];
 
     const updatedUser = await existingUser.save();
 
@@ -122,15 +122,21 @@ export const registerUser = async (req, res, next) => {
     // If student, generate tokens
     if (role === "student") {
       await Wallet.create({ user: updatedUser._id });
-      await generateNotification(null, updatedUser._id, `Welcome to Nexora, ${updatedUser.fullName}`, "system");
+      await generateNotification(
+        null,
+        updatedUser._id,
+        `Welcome to Nexora, ${updatedUser.fullName}`,
+        "system"
+      );
       const accessToken = generateAccessToken({ id: updatedUser._id, role });
       const refreshToken = generateRefreshToken({ id: updatedUser._id });
 
-      res.status(200).cookie("refresh_token", refreshToken, {
+      res.cookie("refresh_token", refreshToken, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "Strict",
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        sameSite: "None", // important for frontend/backend on different domains
+        path: "/auth/refresh", // restrict path
+        maxAge: 7 * 24 * 60 * 60 * 1000,
       });
 
       return res.status(201).json({
@@ -187,7 +193,7 @@ export const signIn = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     // ✅ Send access token in JSON response
@@ -264,7 +270,8 @@ export const googleAuth = async (req, res, next) => {
     });
 
     const payload = ticket.getPayload();
-    if (!payload || !payload.email) throw new AppError("Invalid Google token", 401);
+    if (!payload || !payload.email)
+      throw new AppError("Invalid Google token", 401);
 
     let user = await User.findOne({ email: payload.email });
 
@@ -281,10 +288,20 @@ export const googleAuth = async (req, res, next) => {
       await user.save();
     }
 
-    if (user.status !== "active") throw new AppError(`Your account is ${user.status}`, 403, `account-${user.status}`);
+    if (user.status !== "active")
+      throw new AppError(
+        `Your account is ${user.status}`,
+        403,
+        `account-${user.status}`
+      );
 
-    if(user.isNew){
-      await generateNotification(null, user._id, `Welcome to Nexora ${user.fullName}`, "system");
+    if (user.isNew) {
+      await generateNotification(
+        null,
+        user._id,
+        `Welcome to Nexora ${user.fullName}`,
+        "system"
+      );
     }
 
     // Generate tokens
@@ -296,7 +313,7 @@ export const googleAuth = async (req, res, next) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "Strict",
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
 
     const { password, ...userData } = user.toObject();
@@ -383,7 +400,12 @@ export const resetPassword = async (req, res) => {
 
   await user.save();
 
-  await generateNotification(null, user._id, `Your password has been reset successfully`, "system");
+  await generateNotification(
+    null,
+    user._id,
+    `Your password has been reset successfully`,
+    "system"
+  );
 
   res.status(200).json({ success: true, message: "Password has been reset" });
 };

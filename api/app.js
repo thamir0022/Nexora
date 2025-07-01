@@ -37,7 +37,7 @@ server.listen(PORT, "0.0.0.0", () => {
 app.use(
   cors({
     origin: CLIENT_BASE_URL, // frontend URL
-    credentials: true, // if you're using cookies or authorization headers
+    credentials: true,
   })
 );
 
