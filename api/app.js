@@ -1,5 +1,5 @@
 import express from "express";
-import { PORT } from "./utils/env.js";
+import { NODE_ENV, PORT } from "./utils/env.js";
 import authRoutes from "./routes/auth.routes.js";
 import adminRoutes from "./routes/admin.routes.js";
 import instructorRoutes from "./routes/instructor.route.js";
@@ -30,7 +30,7 @@ const server = http.createServer(app);
 initSocketIo(server);
 
 server.listen(PORT, "0.0.0.0", () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT} in ${NODE_ENV} mode`);
   connectMongodb();
 });
 
