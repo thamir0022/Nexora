@@ -7,12 +7,12 @@ const otpSchema = new Schema({
     unique: true,
   },
   otp: {
-    type: String,
+    type: Number,
     required: true,
   },
   createdAt: {
     type: Date,
-    default: Date.now(),
+    default: Date.now,
     expires: 60,
   }
 });

@@ -84,7 +84,7 @@ export default function Thumbnail({
               maximumFractionDigits: 0,
             })}
           </span>
-          <Badge className="rounded-full">{offer.discountPercentage}%</Badge>
+          <Badge className="rounded-full">{offer?.discountPercentage || 0}%</Badge>
         </div>
 
         <div className="flex items-center gap-2 text-sm">

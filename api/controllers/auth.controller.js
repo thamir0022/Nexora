@@ -35,14 +35,12 @@ export const sentOtp = async (req, res, next) => {
 
     const existingOtp = await Otp.findOne({ email }).lean();
 
-    const randomOTP = generateOtp();
-
     if (existingOtp)
       throw new AppError("OTP already send, Try again after some time", 429);
 
     const newOTP = await Otp.create({
       email,
-      otp: randomOTP
+      otp: generateOtp()
     });
 
     await transporter.sendMail({
@@ -69,7 +67,7 @@ export const verifyOtp = async (req, res, next) => {
 
     if (!existingOtp) throw new AppError("Otp expired, Try resend OTP", 404);
 
-    if (existingOtp.otp !== otp)
+    if (existingOtp.otp !== parseInt(otp))
       throw new AppError("Incorrect Otp, Try again", 400);
 
     await existingOtp.deleteOne();

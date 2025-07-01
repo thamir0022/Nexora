@@ -9,8 +9,8 @@ const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 const GoogleSignInButton = ({ text = "signin" }) => {
   const navigate = useNavigate();
-  const { user, setUser } = useAuth();
-  const { token, setToken } = useAccessToken();
+  const { setUser } = useAuth();
+  const { setToken } = useAccessToken();
 
   const onSuccess = async (googleCredential) => {
     try {
@@ -42,6 +42,7 @@ const GoogleSignInButton = ({ text = "signin" }) => {
   return (
     <GoogleOAuthProvider clientId={clientId}>
       <GoogleLogin
+        className="w-full"
         onSuccess={onSuccess}
         onError={onError}
         shape="pill"

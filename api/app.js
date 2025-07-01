@@ -20,6 +20,7 @@ import { initSocketIo } from "./config/socketio.js";
 import http from "http";
 import { CLIENT_BASE_URL } from "./utils/env.js";
 import certificateRoutes from "./routes/certificate.routes.js";
+import arcjectMiddleware from "./middlewares/arcjetmiddleware.js";
 
 const app = express();
 
@@ -28,7 +29,7 @@ const server = http.createServer(app);
 // Initialize socket.io
 initSocketIo(server);
 
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   connectMongodb();
 });
@@ -40,10 +41,11 @@ app.use(
   })
 );
 
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(arcjectMiddleware);
+
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/instructors", instructorRoutes);
