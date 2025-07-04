@@ -132,7 +132,7 @@ export const getCourseById = async (req, res, next) => {
 
     // 5. Fetch progress if user has access
     let progress = null;
-    if (hasUserAccess) {
+    if (hasUserAccess && req.user.role === "student") {
       progress = await getCourseProgress(userId, courseId);
     }
 
@@ -148,7 +148,6 @@ export const getCourseById = async (req, res, next) => {
     next(error);
   }
 };
-
 
 
 export const getCourseProgress = async (req, res, next) => {
