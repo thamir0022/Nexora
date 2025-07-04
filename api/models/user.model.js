@@ -62,17 +62,19 @@ const UserSchema = new Schema(
       default: false,
       index: true,
     },
-    availableCoupons: [{
-      type: Types.ObjectId,
-      ref: "Coupon",
-    }],
+    availableCoupons: [
+      {
+        type: Types.ObjectId,
+        ref: "Coupon",
+      },
+    ],
     usedCoupons: {
       type: [
         {
           code: { type: String, required: true },
           usedAt: { type: Date, default: Date.now },
           usedCount: { type: Number, default: 1 },
-        }
+        },
       ],
     },
     resetPasswordToken: {
@@ -95,7 +97,6 @@ UserSchema.index({
   isDeleted: 1,
 });
 
-
 // Query middleware: exclude soft-deleted users
 UserSchema.pre(/^find/, function () {
   this.where({ isDeleted: false });
@@ -106,7 +107,6 @@ UserSchema.methods.softDelete = function () {
   this.isDeleted = true;
   return this.save();
 };
-
 
 // Optional: Clean up unused fields based on role (on save)
 UserSchema.pre("save", function (next) {

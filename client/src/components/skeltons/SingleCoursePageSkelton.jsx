@@ -1,6 +1,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Fragment } from "react";
 
 const SingleCoursePageSkelton = () => {
     return (
@@ -59,15 +60,15 @@ const SingleCoursePageSkelton = () => {
                         <Separator />
                         <CardContent className="">
                             {[...Array(4)].map((_, i) => (
-                                <>
-                                    <div key={i}>
+                                <Fragment key={i}>
+                                    <div>
                                         <div className="flex items-center gap-2">
                                             <Skeleton className="w-24 h-16 rounded-sm" />
                                             <Skeleton className="h-4 w-40" />
                                         </div>
                                     </div>
                                     {i !== 3 && <Separator className="my-2" />}
-                                </>
+                                </Fragment>
                             ))}
                         </CardContent>
                     </Card>

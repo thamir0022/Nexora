@@ -2,14 +2,18 @@ import { useEffect } from "react";
 
 const RightClickBlocker = () => {
   useEffect(() => {
-    const handleContextMenu = (e) => {
-      e.preventDefault();
-    };
+    const handleContextMenu = (e) => e.preventDefault();
 
-    document.addEventListener("contextmenu", handleContextMenu);
+    const isProd = import.meta.env.VITE_ENV === "production";
+
+    if (isProd) {
+      document.addEventListener("contextmenu", handleContextMenu);
+    }
 
     return () => {
-      document.removeEventListener("contextmenu", handleContextMenu);
+      if (isProd) {
+        document.removeEventListener("contextmenu", handleContextMenu);
+      }
     };
   }, []);
 

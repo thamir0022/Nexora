@@ -3,8 +3,10 @@ import {
   addCourse,
   deleteCourse,
   getAllCourses,
+  getAllMessages,
   getCourseById,
   getCourseProgress,
+  sendCourseMessage,
   updateCourse,
   updateLessonProgress,
 } from "../controllers/course.controller.js";
@@ -31,8 +33,15 @@ router.delete("/:courseId", verifyUser, deleteCourse);
 router.get("/:courseId/lessons", verifyUser, getLessonsInCourse);
 router.post("/:courseId/lessons", verifyUser, createLesson);
 router.get("/:courseId/lessons/:lessonId", verifyUser, getLessonInCourse);
-router.put("/:courseId/lessons/:lessonId/progress", verifyUser, updateLessonProgress);
+router.put(
+  "/:courseId/lessons/:lessonId/progress",
+  verifyUser,
+  updateLessonProgress
+);
 router.patch("/:courseId/lessons/:lessonId", verifyUser, updateLessonInCourse);
 router.delete("/:courseId/lessons/:lessonId", verifyUser, deleteLessonInCourse);
+
+router.get("/:courseId/messages", verifyUser, getAllMessages);
+router.post("/:courseId/messages", verifyUser, sendCourseMessage);
 
 export default router;

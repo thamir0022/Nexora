@@ -5,6 +5,7 @@ import Enrollment from "../models/enrollment.model.js";
 import Notification from "../models/notification.model.js";
 import { AppError } from "./apperror.js";
 import User from "../models/user.model.js";
+import Message from "../models/message.model.js";
 
 const getSort = (sortBy) => {
   const sortOptions = {
@@ -70,17 +71,17 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
 
   // 1. Match the specific course
   pipeline.push({
-    $match: { _id: new mongoose.Types.ObjectId(courseId) }
+    $match: { _id: new mongoose.Types.ObjectId(courseId) },
   });
 
   // 2. Lookup offers - fetch all applicable offers
   pipeline.push({
     $lookup: {
       from: "offers",
-      let: { 
-        courseId: "$_id", 
-        categoryIds: "$category", 
-        instructorId: "$instructor" 
+      let: {
+        courseId: "$_id",
+        categoryIds: "$category",
+        instructorId: "$instructor",
       },
       pipeline: [
         {
@@ -109,16 +110,18 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                                 input: {
                                   $filter: {
                                     input: "$applicableTo",
-                                    cond: { $eq: ["$$this.refModel", "Course"] }
-                                  }
+                                    cond: {
+                                      $eq: ["$$this.refModel", "Course"],
+                                    },
+                                  },
                                 },
                                 as: "item",
-                                in: "$$item.refId"
-                              }
-                            }
-                          ]
-                        }
-                      ]
+                                in: "$$item.refId",
+                              },
+                            },
+                          ],
+                        },
+                      ],
                     },
                     // Category offers
                     {
@@ -135,20 +138,25 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                                       input: {
                                         $filter: {
                                           input: "$applicableTo",
-                                          cond: { $eq: ["$$this.refModel", "Category"] }
-                                        }
+                                          cond: {
+                                            $eq: [
+                                              "$$this.refModel",
+                                              "Category",
+                                            ],
+                                          },
+                                        },
                                       },
                                       as: "item",
-                                      in: "$$item.refId"
-                                    }
-                                  }
-                                ]
-                              }
+                                      in: "$$item.refId",
+                                    },
+                                  },
+                                ],
+                              },
                             },
-                            0
-                          ]
-                        }
-                      ]
+                            0,
+                          ],
+                        },
+                      ],
                     },
                     // Instructor offers
                     {
@@ -162,34 +170,36 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                                 input: {
                                   $filter: {
                                     input: "$applicableTo",
-                                    cond: { $eq: ["$$this.refModel", "Instructor"] }
-                                  }
+                                    cond: {
+                                      $eq: ["$$this.refModel", "Instructor"],
+                                    },
+                                  },
                                 },
                                 as: "item",
-                                in: "$$item.refId"
-                              }
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          }
+                                in: "$$item.refId",
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         },
         {
           $project: {
             name: 1,
             type: 1,
             discountType: 1,
-            discountValue: 1
-          }
-        }
+            discountValue: 1,
+          },
+        },
       ],
-      as: "applicableOffers"
-    }
+      as: "applicableOffers",
+    },
   });
 
   // 3. Find best offer (highest discount)
@@ -214,11 +224,18 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                           else: {
                             $cond: {
                               if: { $gt: ["$price", 0] },
-                              then: { $multiply: [{ $divide: ["$$this.discountValue", "$price"] }, 100] },
-                              else: 0
-                            }
-                          }
-                        }
+                              then: {
+                                $multiply: [
+                                  {
+                                    $divide: ["$$this.discountValue", "$price"],
+                                  },
+                                  100,
+                                ],
+                              },
+                              else: 0,
+                            },
+                          },
+                        },
                       },
                       {
                         $cond: {
@@ -227,23 +244,33 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                           else: {
                             $cond: {
                               if: { $gt: ["$price", 0] },
-                              then: { $multiply: [{ $divide: ["$$value.discountValue", "$price"] }, 100] },
-                              else: 0
-                            }
-                          }
-                        }
-                      }
-                    ]
+                              then: {
+                                $multiply: [
+                                  {
+                                    $divide: [
+                                      "$$value.discountValue",
+                                      "$price",
+                                    ],
+                                  },
+                                  100,
+                                ],
+                              },
+                              else: 0,
+                            },
+                          },
+                        },
+                      },
+                    ],
                   },
                   then: "$$this",
-                  else: "$$value"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                  else: "$$value",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   // 4. Calculate pricing and offer details
@@ -261,24 +288,34 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                   {
                     $subtract: [
                       "$price",
-                      { $multiply: ["$price", { $divide: ["$bestOfferData.discountValue", 100] }] }
-                    ]
+                      {
+                        $multiply: [
+                          "$price",
+                          { $divide: ["$bestOfferData.discountValue", 100] },
+                        ],
+                      },
+                    ],
                   },
-                  2
-                ]
+                  2,
+                ],
               },
               else: {
                 $round: [
-                  { $max: [0, { $subtract: ["$price", "$bestOfferData.discountValue"] }] },
-                  2
-                ]
-              }
-            }
+                  {
+                    $max: [
+                      0,
+                      { $subtract: ["$price", "$bestOfferData.discountValue"] },
+                    ],
+                  },
+                  2,
+                ],
+              },
+            },
           },
-          else: "$price"
-        }
+          else: "$price",
+        },
       },
-      
+
       // Create structured offer object
       offer: {
         $cond: {
@@ -295,26 +332,41 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                     if: { $gt: ["$price", 0] },
                     then: {
                       $round: [
-                        { $multiply: [{ $divide: ["$bestOfferData.discountValue", "$price"] }, 100] },
-                        2
-                      ]
+                        {
+                          $multiply: [
+                            {
+                              $divide: [
+                                "$bestOfferData.discountValue",
+                                "$price",
+                              ],
+                            },
+                            100,
+                          ],
+                        },
+                        2,
+                      ],
                     },
-                    else: 0
-                  }
-                }
-              }
+                    else: 0,
+                  },
+                },
+              },
             },
             discountAmount: {
               $cond: {
                 if: { $eq: ["$bestOfferData.discountType", "percentage"] },
                 then: {
                   $round: [
-                    { $multiply: ["$price", { $divide: ["$bestOfferData.discountValue", 100] }] },
-                    2
-                  ]
+                    {
+                      $multiply: [
+                        "$price",
+                        { $divide: ["$bestOfferData.discountValue", 100] },
+                      ],
+                    },
+                    2,
+                  ],
                 },
-                else: "$bestOfferData.discountValue"
-              }
+                else: "$bestOfferData.discountValue",
+              },
             },
             offerPrice: {
               $cond: {
@@ -324,31 +376,43 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                     {
                       $subtract: [
                         "$price",
-                        { $multiply: ["$price", { $divide: ["$bestOfferData.discountValue", 100] }] }
-                      ]
+                        {
+                          $multiply: [
+                            "$price",
+                            { $divide: ["$bestOfferData.discountValue", 100] },
+                          ],
+                        },
+                      ],
                     },
-                    2
-                  ]
+                    2,
+                  ],
                 },
                 else: {
                   $round: [
-                    { $max: [0, { $subtract: ["$price", "$bestOfferData.discountValue"] }] },
-                    2
-                  ]
-                }
-              }
-            }
+                    {
+                      $max: [
+                        0,
+                        {
+                          $subtract: ["$price", "$bestOfferData.discountValue"],
+                        },
+                      ],
+                    },
+                    2,
+                  ],
+                },
+              },
+            },
           },
-          else: null
-        }
+          else: null,
+        },
       },
-      
+
       // Additional metadata
       totalLessons: { $size: "$lessons" },
       isPopular: { $gte: ["$enrolledCount", 100] },
       isFree: { $eq: ["$price", 0] },
-      hasDiscount: { $ne: ["$bestOfferData", null] }
-    }
+      hasDiscount: { $ne: ["$bestOfferData", null] },
+    },
   });
 
   // 5. Lookup category
@@ -358,8 +422,8 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
       localField: "category",
       foreignField: "_id",
       as: "category",
-      pipeline: [{ $project: { _id: 1, name: 1 } }]
-    }
+      pipeline: [{ $project: { _id: 1, name: 1 } }],
+    },
   });
 
   // 6. Lookup instructor
@@ -369,8 +433,10 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
       localField: "instructor",
       foreignField: "_id",
       as: "instructor",
-      pipeline: [{ $project: { _id: 1, fullName: 1, email: 1, profilePicture: 1 } }]
-    }
+      pipeline: [
+        { $project: { _id: 1, fullName: 1, email: 1, profilePicture: 1 } },
+      ],
+    },
   });
 
   // 7. Lookup lessons with conditional selection
@@ -382,8 +448,9 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
       as: "lessons",
       pipeline: [
         {
-          $project: hasUserAccess 
-            ? { // Include all fields if user has access
+          $project: hasUserAccess
+            ? {
+                // Include all fields if user has access
                 _id: 1,
                 title: 1,
                 description: 1,
@@ -394,23 +461,24 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
                 order: 1,
                 resources: 1,
                 createdAt: 1,
-                updatedAt: 1
+                updatedAt: 1,
               }
-            : { // Limited fields if no access
+            : {
+                // Limited fields if no access
                 _id: 1,
-                title: 1, 
-                description: 1, 
-                thumbnailImage: 1 
-              }
-        }
-      ]
-    }
+                title: 1,
+                description: 1,
+                thumbnailImage: 1,
+              },
+        },
+      ],
+    },
   });
 
   // 8. Unwind arrays
-  pipeline.push(
-    { $unwind: { path: "$instructor", preserveNullAndEmptyArrays: true } }
-  );
+  pipeline.push({
+    $unwind: { path: "$instructor", preserveNullAndEmptyArrays: true },
+  });
 
   // 9. Project final fields (inclusion only)
   pipeline.push({
@@ -435,9 +503,9 @@ export function buildSingleCoursePipeline(courseId, hasUserAccess) {
       isFree: 1,
       hasDiscount: 1,
       createdAt: 1,
-      updatedAt: 1
+      updatedAt: 1,
       // Note: keywords, applicableOffers, and bestOfferData are automatically excluded
-    }
+    },
   });
 
   return pipeline;
@@ -973,7 +1041,6 @@ export function calculatePagination(totalCount, page, limit) {
   };
 }
 
-
 // Helper function to validate and sanitize filters
 export function validateAndSanitizeFilters(params) {
   const {
@@ -1032,14 +1099,13 @@ export function validateAndSanitizeFilters(params) {
   };
 }
 
-
 // Build aggregation pipeline for cart with offers
 export function buildCartPipeline(userId) {
   const pipeline = [];
 
   // 1. Match user's cart
   pipeline.push({
-    $match: { userId: new mongoose.Types.ObjectId(userId) }
+    $match: { userId: new mongoose.Types.ObjectId(userId) },
   });
 
   // 2. Lookup cart items (courses)
@@ -1048,23 +1114,23 @@ export function buildCartPipeline(userId) {
       from: "courses",
       localField: "items",
       foreignField: "_id",
-      as: "items"
-    }
+      as: "items",
+    },
   });
 
   // 3. Unwind items to process each course individually
   pipeline.push({
-    $unwind: { path: "$items", preserveNullAndEmptyArrays: true }
+    $unwind: { path: "$items", preserveNullAndEmptyArrays: true },
   });
 
   // 4. Lookup offers for each course
   pipeline.push({
     $lookup: {
       from: "offers",
-      let: { 
-        courseId: "$items._id", 
-        categoryIds: "$items.category", 
-        instructorId: "$items.instructor" 
+      let: {
+        courseId: "$items._id",
+        categoryIds: "$items.category",
+        instructorId: "$items.instructor",
       },
       pipeline: [
         {
@@ -1093,16 +1159,18 @@ export function buildCartPipeline(userId) {
                                 input: {
                                   $filter: {
                                     input: "$applicableTo",
-                                    cond: { $eq: ["$$this.refModel", "Course"] }
-                                  }
+                                    cond: {
+                                      $eq: ["$$this.refModel", "Course"],
+                                    },
+                                  },
                                 },
                                 as: "item",
-                                in: "$$item.refId"
-                              }
-                            }
-                          ]
-                        }
-                      ]
+                                in: "$$item.refId",
+                              },
+                            },
+                          ],
+                        },
+                      ],
                     },
                     // Category offers
                     {
@@ -1119,20 +1187,25 @@ export function buildCartPipeline(userId) {
                                       input: {
                                         $filter: {
                                           input: "$applicableTo",
-                                          cond: { $eq: ["$$this.refModel", "Category"] }
-                                        }
+                                          cond: {
+                                            $eq: [
+                                              "$$this.refModel",
+                                              "Category",
+                                            ],
+                                          },
+                                        },
                                       },
                                       as: "item",
-                                      in: "$$item.refId"
-                                    }
-                                  }
-                                ]
-                              }
+                                      in: "$$item.refId",
+                                    },
+                                  },
+                                ],
+                              },
                             },
-                            0
-                          ]
-                        }
-                      ]
+                            0,
+                          ],
+                        },
+                      ],
                     },
                     // Instructor offers
                     {
@@ -1146,34 +1219,36 @@ export function buildCartPipeline(userId) {
                                 input: {
                                   $filter: {
                                     input: "$applicableTo",
-                                    cond: { $eq: ["$$this.refModel", "Instructor"] }
-                                  }
+                                    cond: {
+                                      $eq: ["$$this.refModel", "Instructor"],
+                                    },
+                                  },
                                 },
                                 as: "item",
-                                in: "$$item.refId"
-                              }
-                            }
-                          ]
-                        }
-                      ]
-                    }
-                  ]
-                }
-              ]
-            }
-          }
+                                in: "$$item.refId",
+                              },
+                            },
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         },
         {
           $project: {
             name: 1,
             type: 1,
             discountType: 1,
-            discountValue: 1
-          }
-        }
+            discountValue: 1,
+          },
+        },
       ],
-      as: "applicableOffers"
-    }
+      as: "applicableOffers",
+    },
   });
 
   // 5. Find best offer for each course
@@ -1198,11 +1273,21 @@ export function buildCartPipeline(userId) {
                           else: {
                             $cond: {
                               if: { $gt: ["$items.price", 0] },
-                              then: { $multiply: [{ $divide: ["$$this.discountValue", "$items.price"] }, 100] },
-                              else: 0
-                            }
-                          }
-                        }
+                              then: {
+                                $multiply: [
+                                  {
+                                    $divide: [
+                                      "$$this.discountValue",
+                                      "$items.price",
+                                    ],
+                                  },
+                                  100,
+                                ],
+                              },
+                              else: 0,
+                            },
+                          },
+                        },
                       },
                       {
                         $cond: {
@@ -1211,23 +1296,33 @@ export function buildCartPipeline(userId) {
                           else: {
                             $cond: {
                               if: { $gt: ["$items.price", 0] },
-                              then: { $multiply: [{ $divide: ["$$value.discountValue", "$items.price"] }, 100] },
-                              else: 0
-                            }
-                          }
-                        }
-                      }
-                    ]
+                              then: {
+                                $multiply: [
+                                  {
+                                    $divide: [
+                                      "$$value.discountValue",
+                                      "$items.price",
+                                    ],
+                                  },
+                                  100,
+                                ],
+                              },
+                              else: 0,
+                            },
+                          },
+                        },
+                      },
+                    ],
                   },
                   then: "$$this",
-                  else: "$$value"
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                  else: "$$value",
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   });
 
   // 6. Calculate pricing and offer details for each course
@@ -1244,24 +1339,44 @@ export function buildCartPipeline(userId) {
                   {
                     $subtract: [
                       "$items.price",
-                      { $multiply: ["$items.price", { $divide: ["$items.bestOfferData.discountValue", 100] }] }
-                    ]
+                      {
+                        $multiply: [
+                          "$items.price",
+                          {
+                            $divide: [
+                              "$items.bestOfferData.discountValue",
+                              100,
+                            ],
+                          },
+                        ],
+                      },
+                    ],
                   },
-                  2
-                ]
+                  2,
+                ],
               },
               else: {
                 $round: [
-                  { $max: [0, { $subtract: ["$items.price", "$items.bestOfferData.discountValue"] }] },
-                  2
-                ]
-              }
-            }
+                  {
+                    $max: [
+                      0,
+                      {
+                        $subtract: [
+                          "$items.price",
+                          "$items.bestOfferData.discountValue",
+                        ],
+                      },
+                    ],
+                  },
+                  2,
+                ],
+              },
+            },
           },
-          else: "$items.price"
-        }
+          else: "$items.price",
+        },
       },
-      
+
       "items.offer": {
         $cond: {
           if: { $ne: ["$items.bestOfferData", null] },
@@ -1270,63 +1385,106 @@ export function buildCartPipeline(userId) {
             type: "$items.bestOfferData.type",
             discountPercentage: {
               $cond: {
-                if: { $eq: ["$items.bestOfferData.discountType", "percentage"] },
+                if: {
+                  $eq: ["$items.bestOfferData.discountType", "percentage"],
+                },
                 then: "$items.bestOfferData.discountValue",
                 else: {
                   $cond: {
                     if: { $gt: ["$items.price", 0] },
                     then: {
                       $round: [
-                        { $multiply: [{ $divide: ["$items.bestOfferData.discountValue", "$items.price"] }, 100] },
-                        2
-                      ]
+                        {
+                          $multiply: [
+                            {
+                              $divide: [
+                                "$items.bestOfferData.discountValue",
+                                "$items.price",
+                              ],
+                            },
+                            100,
+                          ],
+                        },
+                        2,
+                      ],
                     },
-                    else: 0
-                  }
-                }
-              }
+                    else: 0,
+                  },
+                },
+              },
             },
             discountAmount: {
               $cond: {
-                if: { $eq: ["$items.bestOfferData.discountType", "percentage"] },
+                if: {
+                  $eq: ["$items.bestOfferData.discountType", "percentage"],
+                },
                 then: {
                   $round: [
-                    { $multiply: ["$items.price", { $divide: ["$items.bestOfferData.discountValue", 100] }] },
-                    2
-                  ]
+                    {
+                      $multiply: [
+                        "$items.price",
+                        {
+                          $divide: ["$items.bestOfferData.discountValue", 100],
+                        },
+                      ],
+                    },
+                    2,
+                  ],
                 },
-                else: "$items.bestOfferData.discountValue"
-              }
+                else: "$items.bestOfferData.discountValue",
+              },
             },
             offerPrice: {
               $cond: {
-                if: { $eq: ["$items.bestOfferData.discountType", "percentage"] },
+                if: {
+                  $eq: ["$items.bestOfferData.discountType", "percentage"],
+                },
                 then: {
                   $round: [
                     {
                       $subtract: [
                         "$items.price",
-                        { $multiply: ["$items.price", { $divide: ["$items.bestOfferData.discountValue", 100] }] }
-                      ]
+                        {
+                          $multiply: [
+                            "$items.price",
+                            {
+                              $divide: [
+                                "$items.bestOfferData.discountValue",
+                                100,
+                              ],
+                            },
+                          ],
+                        },
+                      ],
                     },
-                    2
-                  ]
+                    2,
+                  ],
                 },
                 else: {
                   $round: [
-                    { $max: [0, { $subtract: ["$items.price", "$items.bestOfferData.discountValue"] }] },
-                    2
-                  ]
-                }
-              }
-            }
+                    {
+                      $max: [
+                        0,
+                        {
+                          $subtract: [
+                            "$items.price",
+                            "$items.bestOfferData.discountValue",
+                          ],
+                        },
+                      ],
+                    },
+                    2,
+                  ],
+                },
+              },
+            },
           },
-          else: null
-        }
+          else: null,
+        },
       },
-      
-      "items.hasDiscount": { $ne: ["$items.bestOfferData", null] }
-    }
+
+      "items.hasDiscount": { $ne: ["$items.bestOfferData", null] },
+    },
   });
 
   // 7. Lookup instructor for each course
@@ -1336,13 +1494,13 @@ export function buildCartPipeline(userId) {
       localField: "items.instructor",
       foreignField: "_id",
       as: "items.instructor",
-      pipeline: [{ $project: { _id: 1, fullName: 1, profilePicture: 1 } }]
-    }
+      pipeline: [{ $project: { _id: 1, fullName: 1, profilePicture: 1 } }],
+    },
   });
 
   // 8. Unwind instructor
   pipeline.push({
-    $unwind: { path: "$items.instructor", preserveNullAndEmptyArrays: true }
+    $unwind: { path: "$items.instructor", preserveNullAndEmptyArrays: true },
   });
 
   // 9. Group back to reconstruct cart
@@ -1363,12 +1521,12 @@ export function buildCartPipeline(userId) {
           instructor: "$items.instructor",
           rating: "$items.rating",
           enrolledCount: "$items.enrolledCount",
-          createdAt: "$items.createdAt"
-        }
+          createdAt: "$items.createdAt",
+        },
       },
       createdAt: { $first: "$createdAt" },
-      updatedAt: { $first: "$updatedAt" }
-    }
+      updatedAt: { $first: "$updatedAt" },
+    },
   });
 
   return pipeline;
@@ -1377,11 +1535,15 @@ export function buildCartPipeline(userId) {
 // Calculate cart summary
 export function calculateCartSummary(items) {
   const totalOriginalPrice = items.reduce((sum, item) => sum + item.price, 0);
-  const totalEffectivePrice = items.reduce((sum, item) => sum + item.effectivePrice, 0);
+  const totalEffectivePrice = items.reduce(
+    (sum, item) => sum + item.effectivePrice,
+    0
+  );
   const totalSavings = totalOriginalPrice - totalEffectivePrice;
-  const totalDiscountPercentage = totalOriginalPrice > 0 
-    ? Math.round((totalSavings / totalOriginalPrice) * 100) 
-    : 0;
+  const totalDiscountPercentage =
+    totalOriginalPrice > 0
+      ? Math.round((totalSavings / totalOriginalPrice) * 100)
+      : 0;
 
   return {
     itemCount: items.length,
@@ -1389,73 +1551,85 @@ export function calculateCartSummary(items) {
     totalEffectivePrice: Math.round(totalEffectivePrice * 100) / 100,
     totalSavings: Math.round(totalSavings * 100) / 100,
     totalDiscountPercentage,
-    hasAnyDiscount: items.some(item => item.hasDiscount)
+    hasAnyDiscount: items.some((item) => item.hasDiscount),
   };
 }
 
-
 // Fixed helper function to get effective amounts
-export const getProductsAndEffectiveAmount = async (isCart, courseIds, userId) => {
-  let courseIdsToFetch = []
+export const getProductsAndEffectiveAmount = async (
+  isCart,
+  courseIds,
+  userId
+) => {
+  let courseIdsToFetch = [];
 
   if (isCart) {
     // Get user's cart course IDs
-    const user = await User.findById(userId).select("cart")
+    const user = await User.findById(userId).select("cart");
     if (!user || !user.cart || user.cart.length === 0) {
-      throw new Error("Cart is empty")
+      throw new Error("Cart is empty");
     }
-    courseIdsToFetch = user.cart
+    courseIdsToFetch = user.cart;
   } else {
     // Use provided course IDs
-    courseIdsToFetch = Array.isArray(courseIds) ? courseIds : [courseIds]
+    courseIdsToFetch = Array.isArray(courseIds) ? courseIds : [courseIds];
   }
 
   // Fetch courses with their current offers
   const courses = await Course.find({
     _id: { $in: courseIdsToFetch },
     status: "published", // Only published courses
-  })
+  });
 
   if (courses.length === 0) {
-    throw new Error("No valid courses found")
+    throw new Error("No valid courses found");
   }
 
-  const productIds = courses.map((course) => course._id)
+  const productIds = courses.map((course) => course._id);
 
   // Calculate amounts
-  let originalAmount = 0
-  let effectiveAmount = 0
+  let originalAmount = 0;
+  let effectiveAmount = 0;
 
   courses.forEach((course) => {
-    const price = course.price || 0
-    originalAmount += price
+    const price = course.price || 0;
+    originalAmount += price;
 
     // Use effectivePrice if available, otherwise calculate from offer
     if (course.effectivePrice && course.effectivePrice !== price) {
-      effectiveAmount += course.effectivePrice
+      effectiveAmount += course.effectivePrice;
     } else if (course.hasDiscount && course.offer) {
       // Calculate effective price from offer data
-      let discountAmount = 0
+      let discountAmount = 0;
 
       if (course.offer.discountPercentage) {
-        discountAmount = (price * course.offer.discountPercentage) / 100
+        discountAmount = (price * course.offer.discountPercentage) / 100;
       } else if (course.offer.discountAmount) {
-        discountAmount = course.offer.discountAmount
+        discountAmount = course.offer.discountAmount;
       }
 
-      const effectivePrice = Math.max(price - discountAmount, 0)
-      effectiveAmount += effectivePrice
+      const effectivePrice = Math.max(price - discountAmount, 0);
+      effectiveAmount += effectivePrice;
     } else {
-      effectiveAmount += price
+      effectiveAmount += price;
     }
-  })
+  });
 
-  const offerSavings = originalAmount - effectiveAmount
+  const offerSavings = originalAmount - effectiveAmount;
 
   return {
     productIds,
     originalAmount,
     effectiveAmount,
     offerSavings,
+  };
+};
+
+// Helper function to broadcast message to course participants
+export const broadcastToCourse = (courseId, event, data) => {
+  if (getIo()) {
+    const courseRoom = `course_${courseId}`;
+    getIo().to(courseRoom).emit(event, data);
+    console.log(`📡 Broadcasted ${event} to course ${courseId}`);
   }
-}
+};

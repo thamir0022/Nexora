@@ -5,6 +5,7 @@ import { AppError } from "../utils/apperror.js";
 import natural from "natural";
 import sw from "stopword";
 import {
+  broadcastToCourse,
   buildCoursePipeline,
   buildSingleCoursePipeline,
   calculatePagination,
@@ -14,6 +15,8 @@ import {
 } from "../utils/lib.js";
 import User from "../models/user.model.js";
 import CourseProgress from "../models/progress.model.js";
+import Message from "../models/message.model.js";
+import { getIo } from "../config/socketio.js";
 
 export const getAllCourses = async (req, res, next) => {
   try {
@@ -86,7 +89,6 @@ export const getAllCourses = async (req, res, next) => {
   }
 };
 
-
 // GET: Single Course
 export const getCourseById = async (req, res, next) => {
   try {
@@ -107,7 +109,7 @@ export const getCourseById = async (req, res, next) => {
 
     // 4. Execute aggregation
     const courseResult = await Course.aggregate(pipeline);
-    
+
     if (!courseResult || courseResult.length === 0) {
       throw new AppError("Course not found!", 404);
     }
@@ -117,7 +119,10 @@ export const getCourseById = async (req, res, next) => {
     // 5. Fetch progress if user has access
     let progress = null;
     if (hasUserAccess) {
-      progress = await CourseProgress.findOne({ user: userId, course: courseId })
+      progress = await CourseProgress.findOne({
+        user: userId,
+        course: courseId,
+      })
         .select("-_id completedLessons progressPercentage lastCompletedLesson")
         .lean();
 
@@ -411,5 +416,68 @@ export const deleteCourse = async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+};
+
+export const getAllMessages = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+
+    if (!courseId || !isValidObjectId(courseId)) {
+      throw new AppError("Invalid course ID", 400);
+    }
+
+    const messages = await Message.find({ courseId })
+      .populate("sender", "fullName profilePicture")
+      .sort({ createdAt: 1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Messages fetched successfully",
+      data: messages,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Send a message to course discussion
+export const sendCourseMessage = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { content } = req.body;
+    const userId = req.user._id;
+
+    // Validate input
+    if (!content || !content.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Message content is required",
+      });
+    }
+
+    const newMessage = new Message({
+      courseId,
+      sender: userId,
+      content: content.trim(),
+    });
+
+    await newMessage.save();
+
+    // Broadcast to all participants in the course room
+    broadcastToCourse(courseId, "new_course_message", newMessage);
+
+    // Send response
+    res.status(201).json({
+      success: true,
+      message: "Message sent successfully",
+    });
+  } catch (error) {
+    console.error("Error sending course message:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to send message",
+      error: error.message,
+    });
   }
 };
