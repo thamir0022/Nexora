@@ -9,21 +9,24 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { CartProvider } from "./context/CartContext";
 import ScrollToTop from "./components/ScrollToTop";
 import { WishlistProvider } from "./context/WishlistContext";
+import ErrorBoundary from "./components/Errorboundary";
 
 createRoot(document.getElementById("root")).render(
   <StrictMode>
-    <BrowserRouter>
-      <ThemeProvider storageKey="vite-ui-theme">
-        <AuthProvider>
-          <CartProvider>
-            <WishlistProvider>
-              <ScrollToTop />
-              <App />
-            </WishlistProvider>
-          </CartProvider>
-          <Toaster />
-        </AuthProvider>
-      </ThemeProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <ThemeProvider storageKey="vite-ui-theme">
+          <AuthProvider>
+            <CartProvider>
+              <WishlistProvider>
+                <ScrollToTop />
+                <App />
+              </WishlistProvider>
+            </CartProvider>
+            <Toaster />
+          </AuthProvider>
+        </ThemeProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   </StrictMode>
 );
