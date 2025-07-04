@@ -12,11 +12,6 @@ export function SecurityTab({ userData }) {
           <CardDescription>Manage your account security settings and verification status</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-1">
-            <p className="text-sm font-medium">Account ID</p>
-            <p className="text-sm font-mono text-muted-foreground break-all bg-muted p-2 rounded">{userData._id}</p>
-          </div>
-
           <div className="space-y-3">
             <div className="flex items-center justify-between p-4 rounded-lg border">
               <div className="flex items-center gap-3">

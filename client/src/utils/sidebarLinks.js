@@ -73,10 +73,6 @@ const instructorNav = {
           title: "Create Course",
           url: "/dashboard?tab=create-course",
         },
-        {
-          title: "Course Analytics",
-          url: "/dashboard?tab=course-analytics",
-        },
       ],
     },
     {
