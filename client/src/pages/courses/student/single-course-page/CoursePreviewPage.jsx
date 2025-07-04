@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -16,13 +16,24 @@ import {
   CiUser,
   CiMobile3,
   CiTrophy,
+  CiCreditCard1,
 } from "react-icons/ci";
 import { toast } from "sonner";
-import PaymentButton from "@/components/PaymentButton";
 import CouponInput from "@/components/CouponInput";
 import Reviews from "@/components/Reviews";
 import useAxiosPrivate from "@/hooks/useAxiosPrivate";
 import { useUserCart } from "@/hooks/useUserCart";
+import paymentProcessing from "@/assets/images/payment-processing.svg";
+import paymantFailed from "@/assets/images/payment-failed.svg";
+import paymentSuccess from "@/assets/images/payment-success.svg";
+import useRazorpay from "@/hooks/useRazorpay";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+} from "@/components/ui/alert-dialog";
+import { AlertTitle } from "@/components/ui/alert";
+import { Loader } from "lucide-react";
 
 const CoursePreviewPage = ({ course }) => {
   const [isWishlisted, setIsWishlisted] = useState(false);
@@ -265,11 +276,7 @@ const CoursePreviewPage = ({ course }) => {
                 {/* Action Buttons */}
                 <div className="space-y-3">
                   <PaymentButton
-                    className="w-full py-4 text-lg font-semibold"
-                    couponCode={couponCode}
-                    amount={currentPrice}
-                    description="Course Payment"
-                    icon
+                    amount={course.effectivePrice}
                     course={course._id}
                   />
 
@@ -352,3 +359,57 @@ const CoursePreviewPage = ({ course }) => {
 };
 
 export default CoursePreviewPage;
+
+function PaymentButton({ course, amount }) {
+  const { isProcessing, initiatePayment, paymentState } = useRazorpay();
+
+  const handlePurchase = async () => {
+    const orderData = {
+      amount,
+      isCart: false,
+      course,
+    };
+
+    // The hook handles all the payment flow internally
+    await initiatePayment(orderData);
+  };
+
+  return (
+    <Fragment>
+      <Button
+        className="inline-flex w-full"
+        onClick={handlePurchase}
+        disabled={isProcessing}
+      >
+        {isProcessing ? (
+          <Loader className="size-4 animate-spin" />
+        ) : (
+          <>
+            <CiCreditCard1 className="size-6!" />
+            <span>Buy</span>
+          </>
+        )}
+      </Button>
+
+      <AlertDialog open={!!paymentState}>
+        <AlertDialogContent className="flex flex-col items-center justify-center gap-3">
+          <img
+            className="h-52 mx-auto"
+            src={
+              paymentState === "pending"
+                ? paymentProcessing
+                : paymentState === "success"
+                ? paymentSuccess
+                : paymantFailed
+            }
+            alt={paymentState}
+          />
+          <AlertTitle className="text-muted-foreground text-lg text-center">
+            Payment {paymentState}
+          </AlertTitle>
+          <AlertDialogCancel>Close</AlertDialogCancel>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Fragment>
+  );
+}

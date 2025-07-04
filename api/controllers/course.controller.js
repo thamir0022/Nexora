@@ -5,19 +5,23 @@ import { AppError } from "../utils/apperror.js";
 import natural from "natural";
 import sw from "stopword";
 import {
+  applyFinalFilters,
+  applyOffersToCourses,
+  applyOfferToCourse,
   broadcastToCourse,
-  buildCoursePipeline,
-  buildSingleCoursePipeline,
   calculatePagination,
-  getTotalCount,
+  getActiveOffers,
+  getCourses,
+  getCourseWithBasicData,
   hasAccess,
+  paginateResults,
   validateAndSanitizeFilters,
 } from "../utils/lib.js";
 import User from "../models/user.model.js";
 import CourseProgress from "../models/progress.model.js";
 import Message from "../models/message.model.js";
-import { getIo } from "../config/socketio.js";
 
+// Main controller function
 export const getAllCourses = async (req, res, next) => {
   try {
     const {
@@ -60,18 +64,28 @@ export const getAllCourses = async (req, res, next) => {
       hasOffer,
     });
 
-    // Build aggregation pipeline
-    const pipeline = buildCoursePipeline(filters, sortBy);
+    // Get courses with basic filtering
+    const courses = await getCourses(filters, sortBy);
 
-    // Execute aggregation with pagination
-    const [courses, totalCount] = await Promise.all([
-      Course.aggregate(pipeline),
-      getTotalCount(pipeline),
-    ]);
+    // Get active offers
+    const activeOffers = await getActiveOffers();
+
+    // Apply offers to courses
+    const coursesWithOffers = applyOffersToCourses(courses, activeOffers);
+
+    // Apply final filters
+    const filteredCourses = applyFinalFilters(coursesWithOffers, filters);
+
+    // Paginate results
+    const paginatedCourses = paginateResults(
+      filteredCourses,
+      filters.page,
+      filters.limit
+    );
 
     // Calculate pagination metadata
     const pagination = calculatePagination(
-      totalCount,
+      filteredCourses.length,
       filters.page,
       filters.limit
     );
@@ -79,8 +93,8 @@ export const getAllCourses = async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Courses fetched successfully",
-      courses,
-      totalCourses: totalCount,
+      courses: paginatedCourses,
+      totalCourses: filteredCourses.length,
       pagination,
     });
   } catch (error) {
@@ -89,7 +103,8 @@ export const getAllCourses = async (req, res, next) => {
   }
 };
 
-// GET: Single Course
+
+// GET: Single Course with Offer Data
 export const getCourseById = async (req, res, next) => {
   try {
     const { _id: userId, role } = req.user;
@@ -104,43 +119,28 @@ export const getCourseById = async (req, res, next) => {
     // 2. Check access
     const hasUserAccess = await hasAccess(courseId, userId, role);
 
-    // 3. Build aggregation pipeline to fetch course with offers
-    const pipeline = buildSingleCoursePipeline(courseId, hasUserAccess);
-
-    // 4. Execute aggregation
-    const courseResult = await Course.aggregate(pipeline);
-
-    if (!courseResult || courseResult.length === 0) {
+    // 3. Get course with basic data
+    const course = await getCourseWithBasicData(courseId, hasUserAccess);
+    
+    if (!course) {
       throw new AppError("Course not found!", 404);
     }
 
-    const course = courseResult[0];
+    // 4. Get active offers and apply to course
+    const activeOffers = await getActiveOffers();
+    const courseWithOffer = applyOfferToCourse(course, activeOffers);
 
     // 5. Fetch progress if user has access
     let progress = null;
     if (hasUserAccess) {
-      progress = await CourseProgress.findOne({
-        user: userId,
-        course: courseId,
-      })
-        .select("-_id completedLessons progressPercentage lastCompletedLesson")
-        .lean();
-
-      // default fallback
-      if (!progress) {
-        progress = {
-          completedLessons: [],
-          progressPercentage: 0,
-          lastCompletedLesson: null,
-        };
-      }
+      progress = await getCourseProgress(userId, courseId);
     }
 
     // 6. Send response
     res.status(200).json({
       success: true,
       message: "Course fetched successfully",
-      course,
+      course: courseWithOffer,
       hasAccess: hasUserAccess,
       ...(hasUserAccess && { progress }),
     });
@@ -148,6 +148,8 @@ export const getCourseById = async (req, res, next) => {
     next(error);
   }
 };
+
+
 
 export const getCourseProgress = async (req, res, next) => {
   try {
@@ -444,40 +446,55 @@ export const getAllMessages = async (req, res, next) => {
 // Send a message to course discussion
 export const sendCourseMessage = async (req, res) => {
   try {
-    const { courseId } = req.params;
-    const { content } = req.body;
-    const userId = req.user._id;
+    const { courseId } = req.params
+    const { content } = req.body
+    const { _id: userId } = req.user
 
-    // Validate input
     if (!content || !content.trim()) {
       return res.status(400).json({
         success: false,
         message: "Message content is required",
-      });
+      })
     }
 
     const newMessage = new Message({
       courseId,
       sender: userId,
       content: content.trim(),
-    });
+    })
 
-    await newMessage.save();
+    await newMessage.save()
 
-    // Broadcast to all participants in the course room
-    broadcastToCourse(courseId, "new_course_message", newMessage);
+    // Populate the sender information from database
+    await newMessage.populate("sender", "fullName profilePhoto")
 
-    // Send response
+    // Create clean message object for broadcasting
+    const messageData = {
+      _id: newMessage._id.toString(),
+      courseId: newMessage.courseId,
+      content: newMessage.content,
+      sender: {
+        _id: newMessage.sender._id.toString(),
+        fullName: newMessage.sender.fullName,
+        profilePicture: newMessage.sender.profilePhoto,
+      },
+      createdAt: newMessage.createdAt,
+    }
+
+    // Broadcast to course participants
+    broadcastToCourse(courseId, "new_course_message", messageData)
+
     res.status(201).json({
       success: true,
       message: "Message sent successfully",
-    });
+      data: messageData,
+    })
   } catch (error) {
-    console.error("Error sending course message:", error);
+    console.error("Error sending course message:", error)
     res.status(500).json({
       success: false,
       message: "Failed to send message",
       error: error.message,
-    });
+    })
   }
-};
+}
