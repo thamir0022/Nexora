@@ -25,7 +25,7 @@ const CourseBasicInfo = ({ courseData, updateCourseData, courseCreated, courseId
       try {
         const response = await axios.get("/categories")
         if (response.data.success) {
-          setCategories(response.data.categories)
+          setCategories(response.data.data)
 
           // If we have category IDs but not category data, find and set the category data
           if (courseData.category?.length && !courseData.categoryData?.length) {

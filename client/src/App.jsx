@@ -17,10 +17,12 @@ import MainLayout from "./layouts/MainLayout";
 import CertificatePage from "./pages/CertificatePage";
 import CoursesPage from "./pages/AllCourses";
 import NotFound from "./pages/NotFound";
+import RightClickBlocker from "./components/RightClickBlocker";
 
 const App = () => {
   return (
     <ScrollArea className="w-dvw h-dvh overflow-x-hidden scroll-smooth">
+      <RightClickBlocker/>
       <Routes>
         <Route element={<MainLayout />}>
           <Route path="/" element={<HomePage />} />

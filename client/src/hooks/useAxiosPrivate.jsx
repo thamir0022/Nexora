@@ -6,6 +6,21 @@ import { useAuth } from "./useAuth";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+// Shared across all hook calls
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
 const useAxiosPrivate = () => {
   const refresh = useRefreshToken();
   const { token, setToken } = useAccessToken();
@@ -27,31 +42,54 @@ const useAxiosPrivate = () => {
     const responseIntercept = axiosPrivate.interceptors.response.use(
       (response) => response,
       async (error) => {
-        const prevRequest = error?.config;
+        const originalRequest = error.config;
 
-        // Access token expired → try refresh
-        if (error?.response?.status === 401 && !prevRequest?.sent) {
-          prevRequest.sent = true;
+        // If 401 and we haven't already retried
+        if (error?.response?.status === 401 && !originalRequest._retry) {
+          originalRequest._retry = true;
+
+          if (isRefreshing) {
+            // Wait for the refresh to complete
+            return new Promise((resolve, reject) => {
+              failedQueue.push({
+                resolve: (token) => {
+                  originalRequest.headers["Authorization"] = `Bearer ${token}`;
+                  resolve(axiosPrivate(originalRequest));
+                },
+                reject: (err) => reject(err),
+              });
+            });
+          }
+
+          isRefreshing = true;
+
           try {
             const newAccessToken = await refresh();
             setToken(newAccessToken);
-            prevRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
-            return axiosPrivate(prevRequest);
+            processQueue(null, newAccessToken);
+            originalRequest.headers["Authorization"] = `Bearer ${newAccessToken}`;
+            return axiosPrivate(originalRequest);
           } catch (refreshError) {
-            // Refresh token failed → handle logout
-            const message = refreshError?.response?.data?.message;
-            toast.error("Session expired", {
-              description: message || "Please log in again.",
+            processQueue(refreshError, null);
+
+            const message =
+              refreshError?.response?.data?.message || "Session expired";
+
+            toast.error(message, {
+              description: "Please sign in again.",
+              duration: 5000,
             });
+
+            setUser(null);
             navigate(
               `/sign-in?from=${encodeURIComponent(location.pathname)}${
                 location.search
               }`
             );
 
-            setUser(null);
-
             return Promise.reject(refreshError);
+          } finally {
+            isRefreshing = false;
           }
         }
 

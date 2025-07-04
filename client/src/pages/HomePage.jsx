@@ -65,7 +65,7 @@ const HomePage = () => {
       });
 
       setPagination(allCoursesRes.data.pagination || {});
-      setCategories(categoriesRes.data.categories || []);
+      setCategories(categoriesRes.data.data || []);
     } catch (error) {
       console.error("Failed to fetch courses:", error);
       toast.error("Failed to load courses");

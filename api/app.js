@@ -1,3 +1,4 @@
+import "./sentry/instrument.js";
 import express from "express";
 import { NODE_ENV, PORT } from "./utils/env.js";
 import authRoutes from "./routes/auth.routes.js";
@@ -21,6 +22,7 @@ import http from "http";
 import { CLIENT_BASE_URL } from "./utils/env.js";
 import certificateRoutes from "./routes/certificate.routes.js";
 import arcjectMiddleware from "./middlewares/arcjetmiddleware.js";
+import { logger } from "@sentry/node";
 
 const app = express();
 
@@ -31,6 +33,7 @@ initSocketIo(server);
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT} in ${NODE_ENV} mode`);
+  logger.info(logger.fmt`Server running on port ${PORT} in ${NODE_ENV} mode`);
   connectMongodb();
 });
 

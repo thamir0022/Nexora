@@ -1,3 +1,5 @@
+import { logger } from "@sentry/node";
+
 export const globalErrorHandler = (err, req, res, next) => {
   let statusCode = err.statusCode || 500;
   let message = err.message || 'Internal server error';
@@ -16,6 +18,7 @@ export const globalErrorHandler = (err, req, res, next) => {
 
   console.error(`🚨 [ERROR] ${req.method} ${req.path} - ${statusCode}`);
   console.error(`Message: ${message}`);
+  logger.error(logger.fmt`Error: ${message} at ${req.method} ${req.path}`);
   if (errorLocation) console.error(`Location: ${errorLocation}`);
   if (isDevelopment) console.error('Stack:', err.stack);
 

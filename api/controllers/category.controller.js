@@ -1,20 +1,38 @@
 import Category from "../models/category.model.js";
 import { AppError } from "../utils/apperror.js";
 
-// GET ALL CATEGORIES
-export const getAllCategories = async (req, res, next) => {
+export const getAllCategories = async (req, res) => {
   try {
-    const categories = await Category.find().sort({ createdAt: -1 }).lean();
+    const { search = "", sortBy = "createdAt", order = "desc" } = req.query;
 
-    if (!categories) throw new AppError("No category is found", 404);
+    // Validate sort order
+    const sortOrder = order.toLowerCase() === "asc" ? 1 : -1;
+
+    // Construct search filter (case-insensitive, partial match)
+    const searchFilter = {
+      $or: [
+        { name: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ],
+    };
+
+    // Perform query
+    const categories = await Category.find(searchFilter).sort({
+      [sortBy]: sortOrder,
+    });
 
     res.status(200).json({
       success: true,
-      message: "Categories fetched successfully",
-      categories,
+      count: categories.length,
+      data: categories,
     });
   } catch (error) {
-    next(error);
+    console.error("Error fetching categories:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch categories",
+      error: error.message,
+    });
   }
 };
 
