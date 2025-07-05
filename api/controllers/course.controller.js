@@ -133,7 +133,7 @@ export const getCourseById = async (req, res, next) => {
     // 5. Fetch progress if user has access
     let progress = null;
     if (hasUserAccess && req.user.role === "student") {
-      progress = await getCourseProgress(userId, courseId);
+      progress = await getProgress(userId, courseId);
     }
 
     // 6. Send response
@@ -149,40 +149,52 @@ export const getCourseById = async (req, res, next) => {
   }
 };
 
-
 export const getCourseProgress = async (req, res, next) => {
   try {
+    const userId = req.user._id;
     const { courseId } = req.params;
 
-    if (!courseId || !isValidObjectId(courseId)) {
-      const message = courseId ? "Invalid course ID" : "Course ID is required";
-      throw new AppError(message, 400);
-    }
-
-    let progress = await CourseProgress.findOne({
-      user: req.user._id,
+    const progress = await CourseProgress.findOne({
+      user: userId,
       course: courseId,
     })
-      .select("-_id completedLessons progressPercentage lastCompletedLesson")
+      .populate("lastCompletedLesson", "title")
+      .populate("completedLessons", "title")
       .lean();
 
     if (!progress) {
-      progress = {
-        completedLessons: [],
-        progressPercentage: 0,
-        lastCompletedLesson: null,
-      };
+      return res.status(404).json({
+        success: false,
+        message: "No progress found for this course.",
+      });
     }
 
     res.status(200).json({
       success: true,
-      message: "Course progress fetched successfully",
       progress,
     });
-  } catch (error) {
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
+
+async function getProgress(userId, courseId) {
+  try {
+    const progress = await CourseProgress.findOne({
+      user: userId,
+      course: courseId,
+    })
+      .populate("lastCompletedLesson", "title")
+      .populate("completedLessons", "title")
+      .lean();
+
+    return progress;
+  } catch (err) {
+    console.error("Error getting course progress:", err);
+    throw err;
+  }
+};
+
 
 export const updateLessonProgress = async (req, res, next) => {
   try {

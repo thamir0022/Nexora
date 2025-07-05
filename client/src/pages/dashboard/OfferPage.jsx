@@ -2,11 +2,9 @@
 
 import { useState, useEffect, useMemo } from "react"
 import { toast } from "sonner"
-import { Controller, useForm } from "react-hook-form"
-import { z } from "zod"
+import { useForm, Controller } from "react-hook-form"
 import { format } from "date-fns"
 import { Search, X, Plus, Calendar, Percent, Clock, Loader2, Check, Trash2 } from "lucide-react"
-
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -28,29 +26,59 @@ import { DataTable } from "@/components/datatable/data-table"
 import MultiSelectCombobox from "@/components/MultiselectCompobox"
 import useAxiosPrivate from "@/hooks/useAxiosPrivate"
 import { cn } from "@/lib/utils"
-import { zodResolver } from "@hookform/resolvers/zod"
 import { useAuth } from "@/hooks/useAuth"
 
-// Validation schema
-const offerSchema = z
-  .object({
-    name: z.string().min(1, "Offer name is required").max(100, "Name must be less than 100 characters"),
-    description: z.string().min(1, "Description is required").max(500, "Description must be less than 500 characters"),
-    type: z.string().min(1, "Offer type is required"),
-    discountType: z.enum(["percentage", "flat"]),
-    discountValue: z.number().min(0.01, "Discount value must be greater than 0"),
-    applicableTo: z.array(z.string()).optional(),
-    startDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date format"),
-    endDate: z.string().refine((val) => !isNaN(Date.parse(val)), "Invalid date format"),
-    status: z.enum(["upcoming", "active", "expired", "inactive", "paused"]),
-  })
-  .refine((data) => new Date(data.endDate) > new Date(data.startDate), {
-    message: "End date must be after start date",
-    path: ["endDate"],
-  })
+// Form validation helper
+const validateForm = (data) => {
+  const errors = {}
 
-// Offer form component
-const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onDelete, user }) => {
+  if (!data.name || data.name.trim().length === 0) {
+    errors.name = "Offer name is required"
+  } else if (data.name.length > 100) {
+    errors.name = "Name must be less than 100 characters"
+  }
+
+  if (!data.description || data.description.trim().length === 0) {
+    errors.description = "Description is required"
+  } else if (data.description.length > 500) {
+    errors.description = "Description must be less than 500 characters"
+  }
+
+  if (!data.type) {
+    errors.type = "Offer type is required"
+  }
+
+  if (!data.discountValue || data.discountValue <= 0) {
+    errors.discountValue = "Discount value must be greater than 0"
+  }
+
+  if (!data.startDate) {
+    errors.startDate = "Start date is required"
+  }
+
+  if (!data.endDate) {
+    errors.endDate = "End date is required"
+  }
+
+  if (data.startDate && data.endDate && new Date(data.endDate) <= new Date(data.startDate)) {
+    errors.endDate = "End date must be after start date"
+  }
+
+  return errors
+}
+
+// Offer Form Component
+const OfferForm = ({
+  form,
+  onSubmit,
+  isSubmitting,
+  isEdit = false,
+  onCancel,
+  onDelete,
+  user,
+  formErrors,
+  setFormErrors,
+}) => {
   const [typeData, setTypeData] = useState({
     courses: [],
     categories: [],
@@ -62,10 +90,8 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
   const watchedType = form.watch("type")
   const watchedApplicableTo = form.watch("applicableTo") || []
 
-  // Check if user is instructor
   const isInstructor = user?.role === "instructor"
 
-  // Get available offer types based on user role
   const getAvailableOfferTypes = () => {
     if (isInstructor) {
       return [
@@ -73,7 +99,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
         { value: "instructor", label: "Instructor Discount" },
       ]
     }
-
     return [
       { value: "global", label: "Global Discount" },
       { value: "course", label: "Course Discount" },
@@ -83,7 +108,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
     ]
   }
 
-  // Fetch data when type is selected
   const fetchTypeData = async (type) => {
     if (!["course", "category", "instructor"].includes(type)) return
     if (typeData[`${type}s`].length > 0) return
@@ -93,7 +117,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
       let endpoint = ""
       switch (type) {
         case "course":
-          // For instructors, fetch only their courses
           endpoint = isInstructor ? `/courses/all?instructor=${user._id}` : "/courses/all"
           break
         case "category":
@@ -105,7 +128,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
       }
 
       const response = await axios.get(endpoint)
-
       if (response.data.success) {
         let fetchedData = []
         switch (type) {
@@ -135,7 +157,6 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
     }
   }
 
-  // Reset applicableTo when type changes
   useEffect(() => {
     if (watchedType) {
       if (!isEdit) {
@@ -145,8 +166,16 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
     }
   }, [watchedType, isEdit])
 
+  const handleSubmit = (data) => {
+    const errors = validateForm(data)
+    setFormErrors(errors)
+
+    if (Object.keys(errors).length === 0) {
+      onSubmit(data)
+    }
+  }
+
   const renderApplicableToField = () => {
-    // For instructor offers, don't show selection field as we'll use current instructor
     if (watchedType === "instructor" && isInstructor) {
       return (
         <div className="space-y-2">
@@ -168,7 +197,7 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           loading={loadingTypeData}
           selectedValues={watchedApplicableTo || []}
           onSelectionChange={(values) => {
-            form.setValue("applicableTo", values, { shouldValidate: true })
+            form.setValue("applicableTo", values)
           }}
           placeholder={`Select ${watchedType}s...`}
           type={watchedType}
@@ -178,16 +207,16 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
   }
 
   return (
-    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Offer Name *</Label>
           <Input
             placeholder="Enter offer name"
             {...form.register("name")}
-            className={form.formState.errors.name ? "border-red-500" : ""}
+            className={formErrors.name ? "border-red-500" : ""}
           />
-          {form.formState.errors.name && <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>}
+          {formErrors.name && <p className="text-sm text-red-500">{formErrors.name}</p>}
         </div>
 
         <div className="space-y-2">
@@ -210,7 +239,7 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
               </Select>
             )}
           />
-          {form.formState.errors.type && <p className="text-sm text-red-500">{form.formState.errors.type.message}</p>}
+          {formErrors.type && <p className="text-sm text-red-500">{formErrors.type}</p>}
         </div>
       </div>
 
@@ -220,11 +249,9 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
           placeholder="Enter offer description"
           rows={3}
           {...form.register("description")}
-          className={form.formState.errors.description ? "border-red-500" : ""}
+          className={formErrors.description ? "border-red-500" : ""}
         />
-        {form.formState.errors.description && (
-          <p className="text-sm text-red-500">{form.formState.errors.description.message}</p>
-        )}
+        {formErrors.description && <p className="text-sm text-red-500">{formErrors.description}</p>}
       </div>
 
       {renderApplicableToField()}
@@ -257,37 +284,23 @@ const OfferForm = ({ form, onSubmit, isSubmitting, isEdit = false, onCancel, onD
             min="0"
             placeholder="Enter discount value"
             {...form.register("discountValue", { valueAsNumber: true })}
-            className={form.formState.errors.discountValue ? "border-red-500" : ""}
+            className={formErrors.discountValue ? "border-red-500" : ""}
           />
-          {form.formState.errors.discountValue && (
-            <p className="text-sm text-red-500">{form.formState.errors.discountValue.message}</p>
-          )}
+          {formErrors.discountValue && <p className="text-sm text-red-500">{formErrors.discountValue}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-2">
           <Label>Start Date *</Label>
-          <Input
-            type="date"
-            {...form.register("startDate")}
-            className={form.formState.errors.startDate ? "border-red-500" : ""}
-          />
-          {form.formState.errors.startDate && (
-            <p className="text-sm text-red-500">{form.formState.errors.startDate.message}</p>
-          )}
+          <Input type="date" {...form.register("startDate")} className={formErrors.startDate ? "border-red-500" : ""} />
+          {formErrors.startDate && <p className="text-sm text-red-500">{formErrors.startDate}</p>}
         </div>
 
         <div className="space-y-2">
           <Label>End Date *</Label>
-          <Input
-            type="date"
-            {...form.register("endDate")}
-            className={form.formState.errors.endDate ? "border-red-500" : ""}
-          />
-          {form.formState.errors.endDate && (
-            <p className="text-sm text-red-500">{form.formState.errors.endDate.message}</p>
-          )}
+          <Input type="date" {...form.register("endDate")} className={formErrors.endDate ? "border-red-500" : ""} />
+          {formErrors.endDate && <p className="text-sm text-red-500">{formErrors.endDate}</p>}
         </div>
       </div>
 
@@ -348,6 +361,8 @@ const OfferManagementPage = () => {
   const [isManageDialogOpen, setIsManageDialogOpen] = useState(false)
   const [selectedOffer, setSelectedOffer] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [createFormErrors, setCreateFormErrors] = useState({})
+  const [editFormErrors, setEditFormErrors] = useState({})
   const [alertConfig, setAlertConfig] = useState({
     open: false,
     title: "",
@@ -360,12 +375,10 @@ const OfferManagementPage = () => {
   const axios = useAxiosPrivate()
   const { user } = useAuth()
 
-  // Check if user is instructor
   const isInstructor = user?.role === "instructor"
 
   // Form setup
   const createForm = useForm({
-    resolver: zodResolver(offerSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -380,7 +393,6 @@ const OfferManagementPage = () => {
   })
 
   const editForm = useForm({
-    resolver: zodResolver(offerSchema),
     defaultValues: {
       name: "",
       description: "",
@@ -410,7 +422,11 @@ const OfferManagementPage = () => {
       {
         accessorKey: "type",
         header: "Type",
-        cell: ({ row }) => <Badge variant="outline">{row.getValue("type")}</Badge>,
+        cell: ({ row }) => (
+          <Badge variant="outline" className="capitalize">
+            {row.getValue("type")}
+          </Badge>
+        ),
       },
       {
         accessorKey: "discount",
@@ -474,34 +490,17 @@ const OfferManagementPage = () => {
     const fetchOffers = async () => {
       try {
         setLoading(true)
-        // For instructors, fetch only their offers
         const endpoint = isInstructor ? `/offers?instructor=${user._id}` : "/offers"
-
         const response = await axios.get(endpoint)
+
+
         if (response.data.success) {
-          let fetchedOffers = response.data.offers || []
-
-          // Additional filtering for instructors to ensure they only see their own offers
-          if (isInstructor) {
-            fetchedOffers = fetchedOffers.filter((offer) => {
-              // Show instructor offers that belong to this instructor
-              if (offer.type === "instructor") {
-                return offer.applicableTo?.some((item) => item.refModel === "Instructor" && item.refId === user._id)
-              }
-              // Show course offers that belong to this instructor's courses
-              if (offer.type === "course") {
-                // This assumes the backend already filtered by instructor
-                return true
-              }
-              return false
-            })
-          }
-
-          setOffers(fetchedOffers)
+          setOffers(response.data.offers || [])
         } else {
           toast.error(response.data.message || "Failed to fetch offers")
         }
       } catch (error) {
+        console.error("Fetch offers error:", error)
         toast.error("An error occurred while fetching offers")
       } finally {
         setLoading(false)
@@ -524,6 +523,9 @@ const OfferManagementPage = () => {
     )
   }, [offers, searchText])
 
+  console.log("Current offers:", offers) // Debug log
+  console.log("Filtered offers:", filteredOffers) // Debug log
+
   // Utility functions
   const showAlert = (config) => {
     setAlertConfig({ ...config, open: true })
@@ -534,7 +536,6 @@ const OfferManagementPage = () => {
   }
 
   const formatApplicableTo = (data, type) => {
-    // For instructor offers by instructors, automatically use current instructor
     if (type === "instructor" && isInstructor) {
       return [
         {
@@ -574,6 +575,7 @@ const OfferManagementPage = () => {
         endDate: format(new Date(offer.endDate), "yyyy-MM-dd"),
         status: offer.status,
       })
+      setEditFormErrors({})
       setIsManageDialogOpen(true)
     }
   }
@@ -593,10 +595,12 @@ const OfferManagementPage = () => {
         toast.success("Offer created successfully")
         setIsCreateDialogOpen(false)
         createForm.reset()
+        setCreateFormErrors({})
       } else {
         toast.error(response.data.message || "Failed to create offer")
       }
     } catch (error) {
+      console.error("Create offer error:", error)
       toast.error("An error occurred while creating the offer")
     } finally {
       setIsSubmitting(false)
@@ -622,10 +626,12 @@ const OfferManagementPage = () => {
         toast.success("Offer updated successfully")
         setIsManageDialogOpen(false)
         setSelectedOffer(null)
+        setEditFormErrors({})
       } else {
         toast.error(response.data.message || "Failed to update offer")
       }
     } catch (error) {
+      console.error("Edit offer error:", error)
       toast.error("An error occurred while updating the offer")
     } finally {
       setIsSubmitting(false)
@@ -649,6 +655,7 @@ const OfferManagementPage = () => {
         toast.error(response.data.message || "Failed to delete offer")
       }
     } catch (error) {
+      console.error("Delete offer error:", error)
       toast.error("An error occurred while deleting the offer")
     } finally {
       setIsSubmitting(false)
@@ -656,7 +663,8 @@ const OfferManagementPage = () => {
   }
 
   const handleCreateCancel = () => {
-    const hasChanges = Object.values(createForm.getValues()).some((value) => {
+    const values = createForm.getValues()
+    const hasChanges = Object.values(values).some((value) => {
       if (typeof value === "string") return value !== ""
       if (typeof value === "number") return value !== 0
       if (Array.isArray(value)) return value.length > 0
@@ -670,6 +678,7 @@ const OfferManagementPage = () => {
         onConfirm: () => {
           setIsCreateDialogOpen(false)
           createForm.reset()
+          setCreateFormErrors({})
           closeAlert()
         },
         confirmText: "Discard Changes",
@@ -683,6 +692,7 @@ const OfferManagementPage = () => {
   const handleManageCancel = () => {
     setIsManageDialogOpen(false)
     setSelectedOffer(null)
+    setEditFormErrors({})
   }
 
   const handleDeleteClick = () => {
@@ -693,21 +703,6 @@ const OfferManagementPage = () => {
       confirmText: "Delete Offer",
       confirmVariant: "destructive",
     })
-  }
-
-  // Custom dialog close handler for edit dialog
-  const handleManageDialogOpenChange = (open) => {
-    // Only allow closing if not interacting with dropdown
-    if (!open) {
-      // Check if a dropdown is currently open
-      const hasOpenDropdown = document.querySelector('[data-state="open"]')
-      if (!hasOpenDropdown) {
-        setIsManageDialogOpen(false)
-        setSelectedOffer(null)
-      }
-    } else {
-      setIsManageDialogOpen(open)
-    }
   }
 
   return (
@@ -757,7 +752,7 @@ const OfferManagementPage = () => {
       />
 
       {/* Create Offer Dialog */}
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} modal={false}>
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Create New Offer</DialogTitle>
@@ -773,37 +768,15 @@ const OfferManagementPage = () => {
             isSubmitting={isSubmitting}
             onCancel={handleCreateCancel}
             user={user}
+            formErrors={createFormErrors}
+            setFormErrors={setCreateFormErrors}
           />
         </DialogContent>
       </Dialog>
 
       {/* Manage Offer Dialog */}
-      <Dialog open={isManageDialogOpen} onOpenChange={handleManageDialogOpenChange} modal={false}>
-        <DialogContent
-          className="max-w-2xl max-h-[90vh] overflow-y-auto"
-          onPointerDownOutside={(e) => {
-            // Prevent closing when clicking on dropdown elements
-            const target = e.target
-            if (
-              target?.closest("[data-radix-popper-content-wrapper]") ||
-              target?.closest("[data-radix-select-content]") ||
-              target?.closest("[data-radix-popover-content]")
-            ) {
-              e.preventDefault()
-            }
-          }}
-          onInteractOutside={(e) => {
-            // Prevent closing when interacting with dropdown elements
-            const target = e.target
-            if (
-              target?.closest("[data-radix-popper-content-wrapper]") ||
-              target?.closest("[data-radix-select-content]") ||
-              target?.closest("[data-radix-popover-content]")
-            ) {
-              e.preventDefault()
-            }
-          }}
-        >
+      <Dialog open={isManageDialogOpen} onOpenChange={setIsManageDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Manage Offer</DialogTitle>
             <DialogDescription>Edit offer details or delete the offer</DialogDescription>
@@ -817,12 +790,14 @@ const OfferManagementPage = () => {
               onCancel={handleManageCancel}
               onDelete={handleDeleteClick}
               user={user}
+              formErrors={editFormErrors}
+              setFormErrors={setEditFormErrors}
             />
           )}
         </DialogContent>
       </Dialog>
 
-      {/* Universal Alert Dialog */}
+      {/* Alert Dialog */}
       <AlertDialog open={alertConfig.open} onOpenChange={closeAlert}>
         <AlertDialogContent>
           <AlertDialogHeader>
