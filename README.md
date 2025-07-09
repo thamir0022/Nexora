@@ -1,4 +1,4 @@
-# ✨ Nexora Empowering Education Through Skills
+# 🌟 Nexora - Empowering Education, Preserving Tradition, Inspiring Growth
 
 **Nexora** is a full-featured, modern e-learning platform built with the mission to democratize access to high-quality, skill-based education.
 Unlike traditional platforms, Nexora focuses on **hands-on, practical skills** especially those that are vanishing with time, 
