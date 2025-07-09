@@ -11,6 +11,13 @@ To bridge the gap between passionate learners and talented instructors, empoweri
 
 ---
 
+# 🎉 See It Live
+
+Start learning or teaching today on Nexora:  
+👉 [Launch Nexora](https://nexora-kohl.vercel.app)
+
+---
+
 ## 🚀 Tech Stack
 
 ### 🧩 Frontend (React + Vite)
