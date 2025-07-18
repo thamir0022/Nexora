@@ -1,67 +1,64 @@
-"use client";
-
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import {
   CiMail,
   CiPhone,
   CiLocationOn,
-  CiTwitter,
   CiFacebook,
   CiInstagram,
   CiLinkedin,
-  CiHeart,
 } from "react-icons/ci";
 import BrandLogo from "./BrandLogo";
+import { FaHeart, FaTwitter } from "react-icons/fa";
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
   const footerLinks = {
     product: [
-      { name: "Features", href: "#" },
-      { name: "Pricing", href: "#" },
-      { name: "API", href: "#" },
-      { name: "Documentation", href: "#" },
+      { name: "Features", href: "/" },
+      { name: "Pricing", href: "/" },
+      { name: "API", href: "/" },
+      { name: "Documentation", href: "/" },
     ],
     company: [
-      { name: "About Us", href: "#" },
-      { name: "Careers", href: "#" },
-      { name: "Blog", href: "#" },
-      { name: "Press", href: "#" },
+      { name: "About Us", href: "/" },
+      { name: "Careers", href: "/" },
+      { name: "Blog", href: "/" },
+      { name: "Press", href: "/" },
     ],
     support: [
-      { name: "Help Center", href: "#" },
-      { name: "Contact Us", href: "#" },
-      { name: "Status", href: "#" },
-      { name: "Community", href: "#" },
+      { name: "Help Center", href: "/" },
+      { name: "Contact Us", href: "/" },
+      { name: "Status", href: "/" },
+      { name: "Community", href: "/" },
     ],
     legal: [
-      { name: "Privacy Policy", href: "#" },
-      { name: "Terms of Service", href: "#" },
-      { name: "Cookie Policy", href: "#" },
-      { name: "GDPR", href: "#" },
+      { name: "Privacy Policy", href: "/" },
+      { name: "Terms of Service", href: "/" },
+      { name: "Cookie Policy", href: "/" },
+      { name: "GDPR", href: "/" },
     ],
   };
 
-  const socialLinks = [
-    { name: "Twitter", icon: CiTwitter, href: "#" },
-    { name: "Facebook", icon: CiFacebook, href: "#" },
-    { name: "Instagram", icon: CiInstagram, href: "#" },
-    { name: "LinkedIn", icon: CiLinkedin, href: "#" },
-  ];
+  // const socialLinks = [
+  //   { name: "Twitter", icon: FaTwitter, href: "/" },
+  //   { name: "Facebook", icon: CiFacebook, href: "/" },
+  //   { name: "Instagram", icon: CiInstagram, href: "/" },
+  //   { name: "LinkedIn", icon: CiLinkedin, href: "/" },
+  // ];
 
   const contactInfo = [
     {
       icon: CiMail,
-      text: "hello@company.com",
-      href: "mailto:hello@company.com",
+      text: "thamirsiddik@gmail.com",
+      href: "mailto:thamirsiddik@gmail.com",
     },
-    { icon: CiPhone, text: "+1 (555) 123-4567", href: "tel:+15551234567" },
+    { icon: CiPhone, text: "+91 9778078742", href: "tel:+91 9778078742" },
     {
       icon: CiLocationOn,
-      text: "123 Business St, City, State 12345",
-      href: "#",
+      text: "Brototype, Kochi",
+      href: "/",
     },
   ];
 
@@ -97,7 +94,7 @@ const Footer = () => {
             </div>
 
             {/* Social Links */}
-            <div className="flex gap-2">
+            {/* <div className="flex gap-2">
               {socialLinks.map((social) => (
                 <Button
                   key={social.name}
@@ -116,7 +113,7 @@ const Footer = () => {
                   </a>
                 </Button>
               ))}
-            </div>
+            </div> */}
           </div>
 
           {/* Product Links */}
@@ -193,26 +190,34 @@ const Footer = () => {
         {/* Bottom Footer */}
         <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
-            <span>© {currentYear} Your Company. Made with</span>
-            <CiHeart className="h-4 w-4 text-red-500" />
-            <span>by our team.</span>
+            <span>© {currentYear} Nexora. Made with</span>
+            <FaHeart className="size-4 inset-0 fill-red-500" />
+            <span>by</span>
+            <a
+              className="link"
+              href="https://www.linkedin.com/in/thamirsiddik"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Thamir Siddik
+            </a>
           </div>
 
           <div className="flex items-center gap-6 text-sm">
             <a
-              href="#"
+              href="/"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Privacy
             </a>
             <a
-              href="#"
+              href="/"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Terms
             </a>
             <a
-              href="#"
+              href="/"
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
               Cookies
