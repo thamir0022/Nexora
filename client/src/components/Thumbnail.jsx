@@ -51,7 +51,9 @@ export default function Thumbnail({
           loading="lazy"
           src={thumbnailImage}
           alt={title}
-          className="w-full h-48 object-cover"
+          className="object-cover"
+          width="100%"
+          height="200"
         />
       </Link>
 
@@ -78,13 +80,15 @@ export default function Thumbnail({
             })}
           </span>
           <span className="text-lg font-semibold text-primary">
-            {effectivePrice.toLocaleString("en-IN", {
+            {Math.floor(effectivePrice).toLocaleString("en-IN", {
               style: "currency",
               currency: "INR",
               maximumFractionDigits: 0,
             })}
           </span>
-          <Badge className="rounded-full">{offer?.discountPercentage || 0}%</Badge>
+          <Badge className="rounded-full">
+            {offer?.discountPercentage || 0}%
+          </Badge>
         </div>
 
         <div className="flex items-center gap-2 text-sm">
@@ -213,9 +217,7 @@ function PaymentButton({ course, amount }) {
           <AlertTitle className="text-muted-foreground text-lg text-center">
             Payment {paymentState}
           </AlertTitle>
-          <AlertDialogCancel>
-            Close
-          </AlertDialogCancel>
+          <AlertDialogCancel>Close</AlertDialogCancel>
         </AlertDialogContent>
       </AlertDialog>
     </Fragment>

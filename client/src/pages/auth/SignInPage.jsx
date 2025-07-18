@@ -142,9 +142,6 @@ function SignInPage() {
       <div className="w-full md:w-sm lg:w-md mx-auto px-5 space-y-4 text-center">
         <div className="space-y-2">
           <p className="font-medium text-xl">Welcome Back</p>
-          <p className="text-sm">
-            Enter your email and password below to log in to your account
-          </p>
         </div>
         <div className="">
           <Form {...form}>

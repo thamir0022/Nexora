@@ -1,8 +1,15 @@
 import Razorpay from "razorpay";
+import { RAZORPAY_API_KEY, RAZORPAY_API_SECRET } from "../utils/env.js";
 
-const instance = new Razorpay({
-  key_id: process.env.RAZORPAY_API_KEY,
-  key_secret: process.env.RAZORPAY_API_SECRET,
-});
+let instance;
+
+(function () {
+  if (RAZORPAY_API_KEY && RAZORPAY_API_SECRET) {
+    instance = new Razorpay({
+      key_id: RAZORPAY_API_KEY,
+      key_secret: RAZORPAY_API_SECRET,
+    });
+  }
+})();
 
 export default instance;

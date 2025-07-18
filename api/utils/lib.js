@@ -266,36 +266,40 @@ function calculateDiscountPercentage(offer, originalPrice) {
   }
 }
 
-// Calculate offer data with your requested structure
 function calculateOfferData(offer, originalPrice) {
   let discountAmount, discountValue, discountPercentage;
 
   if (offer.discountType === "percentage") {
-    // Percentage discount
     discountPercentage = offer.discountValue;
-    discountValue =
-      Math.round(((originalPrice * offer.discountValue) / 100) * 100) / 100;
-    discountAmount = Math.round((originalPrice - discountValue) * 100) / 100;
+
+    // Calculate the amount to be subtracted
+    const rawDiscount = (originalPrice * discountPercentage) / 100;
+
+    // Floor to ensure pricing is always rounded down
+    discountValue = Math.floor(rawDiscount * 100) / 100;
+
+    // Final price after discount
+    discountAmount = Math.floor((originalPrice - discountValue) * 100) / 100;
   } else {
     // Flat discount
     discountValue = Math.min(offer.discountValue, originalPrice);
-    discountAmount = Math.max(
-      0,
-      Math.round((originalPrice - discountValue) * 100) / 100
-    );
+    discountAmount =
+      Math.floor((originalPrice - discountValue) * 100) / 100;
+
     discountPercentage =
       originalPrice > 0
-        ? Math.round((discountValue / originalPrice) * 100 * 100) / 100
+        ? Math.floor((discountValue / originalPrice) * 10000) / 100
         : 0;
   }
 
   return {
     name: offer.name,
-    discountAmount: discountAmount, // Price after discount
-    discountValue: discountValue, // Amount that is off
-    discountPercentage: discountPercentage, // Percentage of discount
+    discountAmount,        // Final price after discount (e.g., 1299)
+    discountValue,         // How much is off (e.g., 1300)
+    discountPercentage,    // Percentage of discount (e.g., 50%)
   };
 }
+
 
 // Apply final filters after offers are calculated - FIXED
 export function applyFinalFilters(courses, filters) {
